@@ -121,6 +121,14 @@ void Append_CRC8_Check_Sum(uint8_t *pchMessage, uint32_t dwLength)
  ** Input: Data to check,Stream length, initialized checksum
  ** Output: CRC checksum
  */
+/**
+  * @brief  通过查表计算输入数据的 CRC16 校验和
+  * @param
+		pchMessage 接收到的待校验数据数组首地址
+		dwLength 接收数组的长度
+		wCRC     CRC16初始值
+  * @retval 无
+  */
 uint16_t Get_CRC16_Check_Sum(uint8_t *pchMessage,
                              uint32_t dwLength,
                              uint16_t wCRC)
@@ -143,6 +151,7 @@ uint16_t Get_CRC16_Check_Sum(uint8_t *pchMessage,
  ** Input: Data to Verify,Stream length = Data + checksum
  ** Output: True or False (CRC Verify Result)
  */
+
 uint32_t Verify_CRC16_Check_Sum(uint8_t *pchMessage, uint32_t dwLength)
 {
 	uint16_t wExpected = 0;

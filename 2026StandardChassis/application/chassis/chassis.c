@@ -665,23 +665,26 @@ float Chassis_Get_Actual_Omega(void)
 
 void Chassis_State_Machine(void)
 {
+    //对原始输入指令的处理，避免输入值过大导致失控
     float target_x_speed = uart2_rx_message.target_x_speed * 0.005f;
     float target_y_speed = uart2_rx_message.target_y_speed * 0.005f;
     float target_omega_speed = uart2_rx_message.target_omega_speed * 3 * PI;
     chassis_mode = uart2_rx_message.chassis_mode;
+    //初始化保护
     if (init_count < 1000)
     {
         init_count++;
         chassis_mode = CHASSIS_MODE_STOP;
     }
+    //对不同控制模式下的处理
     switch (chassis_mode)
     {
-    case CHASSIS_MODE_STOP:
+    case CHASSIS_MODE_STOP: //停止模式，关闭底盘所有电机，但是记录云台当前角度
         Chassis_Stop();
         target_angle_yaw = gimbal_motor_yaw->receive_data.position;
         chassis_mode_last = CHASSIS_MODE_STOP;
         break;
-    case CHASSIS_MODE_MANUAL:
+    case CHASSIS_MODE_MANUAL: //手动模式，根据操作手控制的输入值进行运动
         target_angle_yaw = target_angle_yaw + uart2_rx_message.delta_target_angle_yaw * 0.00002f;
 
         Chassis_Enable();
@@ -691,7 +694,7 @@ void Chassis_State_Machine(void)
         DM_Motor_Control();
         chassis_mode_last = CHASSIS_MODE_MANUAL;
         break;
-    default:
+    default: //错误保护
         Chassis_Stop();
         target_angle_yaw = gimbal_motor_yaw->receive_data.position;
         chassis_mode_last = CHASSIS_MODE_STOP;

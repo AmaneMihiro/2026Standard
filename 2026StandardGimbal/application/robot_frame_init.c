@@ -21,6 +21,7 @@
 #include "daemon_task.h"
 #include "INS_task.h"
 #include "procotol_task.h"
+#include "CDC_task.h"
 
 #include "chassis.h"
 #include "gimbal.h"
@@ -28,6 +29,7 @@
 #include "daemon.h"
 #include "INS.h"
 #include "procotol.h"
+#include "CDC.h"
 
 #include "bmi088.h"
 #include "ws2812.h"
@@ -82,6 +84,8 @@ static void Frame_Task_Init(void)
 	   INS_Task_Init( );
 
 	   Procotol_Task_Init( );
+
+	   CDC_Task_Init();
 }
 
 void Robot_Frame_Init(void)
