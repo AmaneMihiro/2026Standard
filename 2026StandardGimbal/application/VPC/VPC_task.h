@@ -1,5 +1,5 @@
-#ifndef __CDC_task_H__
-#define __CDC_task_H__
+#ifndef __VPC_task_H__
+#define __VPC_task_H__
 
 #include <string.h>
 #include <stdlib.h>
@@ -14,12 +14,12 @@
 #include "INS.h"
 
 
-extern osThreadId_t cdc_task_handel;
-extern SemaphoreHandle_t g_xSemCDC;
+extern osThreadId_t VPC_task_handel;
+extern SemaphoreHandle_t g_xSemVPC;
 
 
-extern void CDC_Task_Init(void);
-extern void CDC_Task(void *argument);
+extern void VPC_Task_Init(void);
+extern void VPC_Task(void *argument);
 
 
 

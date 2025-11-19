@@ -1,6 +1,6 @@
 	/*
  * @file		Serial.c/h
- * @brief		usb-cdc通信程序，用于上位机和stm32的通信，需配合上位机代码使用，现采用zy版本
+ * @brief		usb-CDC通信程序，用于上位机和stm32的通信，需配合上位机代码使用，现采用zy版本
  * @history
  * 版本			作者			编写日期
  * v1.0.0		许金帅		2023/4/1
@@ -57,7 +57,7 @@ typedef struct
 
 extern receive_packet_t  aim_packet_from_nuc;
 extern send_packet_t  aim_packet_to_nuc;
-extern uint8_t  buf_receive_from_nuc[sizeof(receive_packet_t)];//具体应用在usb接收函数中（在cdc_if.c中）
+extern uint8_t  buf_receive_from_nuc[sizeof(receive_packet_t)];//具体应用在usb接收函数中（在CDC_if.c中）
 
 
 int CDC_SendFeed(uint8_t* Fed, uint16_t Len);//CDC发送反馈数据的函数

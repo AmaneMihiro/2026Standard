@@ -50,7 +50,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-SemaphoreHandle_t g_xSemCDC = NULL;
+SemaphoreHandle_t g_xSemVPC = NULL;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;

@@ -138,4 +138,3 @@ void Send_Packet_Init(send_packet_t *send_packet)
      send_packet-> yaw = INS.Yaw;
 }
 
-

@@ -21,6 +21,8 @@
 #include "DM_motor.h"
 #include "remote_control.h"
 
+#include "Serial.h"
+
 uint8_t gimbal_mode = 0;
 uint8_t gimbal_mode_last = 0;
 float target_angle_pitch = 0;

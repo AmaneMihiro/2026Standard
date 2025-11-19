@@ -1,5 +1,5 @@
-#ifndef __CDC_H__
-#define __CDC_H__
+#ifndef __VPC_H__
+#define __VPC_H__
 
 #include <string.h>
 #include <stdlib.h>
@@ -16,7 +16,7 @@
 
 
 
-extern void CDC_Init(void);
-extern void CDC_Receive(void);
-
+extern void VPC_Init(void);
+extern void VPC_Receive(void);
+//extern void VPC_SendTarget(void);
 #endif
