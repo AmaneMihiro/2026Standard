@@ -122,4 +122,5 @@ RC_ctrl_t *Remote_Control_Init(UART_HandleTypeDef *rc_usart_handle);
 
 uint8_t Remote_Control_Is_Online(void);
 
+extern Key_t keyboard;
 #endif /* __REMOTE_CONTROL_H__ */

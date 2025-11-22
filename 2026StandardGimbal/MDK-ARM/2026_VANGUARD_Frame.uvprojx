@@ -2249,11 +2249,6 @@
               <FileType>5</FileType>
               <FilePath>..\module\rs485\rs485.h</FilePath>
             </File>
-            <File>
-              <FileName>referee.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\module\referee\referee.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>

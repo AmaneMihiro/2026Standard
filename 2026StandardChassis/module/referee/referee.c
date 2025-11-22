@@ -14,6 +14,8 @@
 #include "referee.h"
 #include "remote_control.h"
 #include "CRC.h"
+#include "defense_center.h"
+
 uint8_t referee_rx_len;    //裁判系统串口idle中断接收数据长度
 uint8_t referee_pic_rx_len;
 uint8_t referee_rx_buf[REFEREE_RXBUFF_SIZE];           //dma接收区
@@ -23,25 +25,24 @@ uint8_t referee_tx_buf[REFEREE_TXBUFF_SIZE];                        //maximum 12
 Referee_InfoTypedef refree_info;             //裁判系统数据
 uint8_t UI_Seq = 0;
 
+static uint8_t referee_init_flag = 0;
+static USART_t *referee_usart_instance;
+static supervisor_t *referee_supervisor_instance; 
+
 void RefereeSolve(uint8_t *data);
 void RefereeInit()
 {
-//	HAL_DMA_RegisterCallback(&hdma_usart6_rx, HAL_DMA_XFER_CPLT_CB_ID, RefereeSolve);
-//	HAL_DMA_RegisterCallback(&hdma_usart1_rx, HAL_DMA_XFER_CPLT_CB_ID, RefereeSolve);
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart1, referee_pic_rx_buf, REFEREE_PICBUFF_SIZE);
-	__HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart6, referee_rx_buf, REFEREE_RXBUFF_SIZE);
-	__HAL_DMA_DISABLE_IT(&hdma_usart6_rx,DMA_IT_HT);
+	USART_Service_Init(&huart10);
 }
 
-void RefereeSolve(uint8_t *data)
+void RefereeSolve(uint8_t *data) //裁判系统的信息处理
 {
 
 	uint16_t offset_frame_tail = (data[Offset_SOF_DataLength + 1]<<8) + data[Offset_SOF_DataLength]
 							+LEN_CMD_ID +LEN_FRAME_HEAD;
 	uint16_t cmd_id = (data[Offset_cmd_ID + 1] << 8 | data[Offset_cmd_ID] );
 
-	if(data[0] != 0xA5 || !Ref_Verify_CRC16_Check_Sum(data, offset_frame_tail +2)
+	if(data[0] != 0xA5 || !Verify_CRC16_Check_Sum(data, offset_frame_tail +2)
 			           || !Verify_CRC8_Check_Sum(data, LEN_FRAME_HEAD))
 	{
 		return;
@@ -103,7 +104,7 @@ void RefereeSolve(uint8_t *data)
 	//0x300
 #ifndef USE_REMOTE_KEYBORAD
 	case ID_keyboard_information:
-			memcpy(&(RC_Ctl.keyboard), (data + Offset_data), LEN_keyboard_information);
+			memcpy(&keyboard.keys, (data + Offset_data), LEN_keyboard_information);
 			break;
 #endif
 	}
@@ -114,7 +115,40 @@ void RefereeSolve(uint8_t *data)
 
 }
 
+static void Referee_Rx_Callback(void)   //接收到数据后的中断回调处理
+{
+	Supervisor_Reload(referee_supervisor_instance); //喂狗
+	RefereeSolve(referee_rx_buf); //裁判系统数据处理
+} 
 
+
+static void Referee_Lost_Callback(void) //裁判系统掉线未正常工作则重启
+{
+	memset(&refree_info,0,sizeof(refree_info));
+	USART_Service_Init(referee_usart_instance);
+}
+
+
+Referee_InfoTypedef *Referee_Init(UART_HandleTypeDef *referee_usart_handle) //裁判系统的初始化函数
+{
+	usart_init_config_t conf;
+	conf.module_callback = Referee_Rx_Callback;
+	conf.usart_handle    = referee_usart_handle;
+	conf.recv_buff_size  = referee_rx_len;
+	referee_usart_instance   = USART_Register(&conf);
+
+	// 进行守护进程的注册,用于定时检查裁判系统是否正常工作
+	supervisor_init_config_t supervisor_conf = 
+	{
+		.reload_count = 1000, // 100ms未收到数据视为离线
+		.handler_callback = Referee_Lost_Callback,
+		.owner_id = NULL, 
+	};
+	referee_supervisor_instance = Supervisor_Register(&supervisor_conf);
+
+	referee_init_flag = 1;
+	return &refree_info;
+}
 
 
 

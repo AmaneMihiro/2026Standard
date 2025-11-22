@@ -309,7 +309,7 @@ uint16_t keyboard_value;
 uint16_t reserved;
 }__attribute__((packed))ext_robot_command_t;
 
-void RefereeInit();
+Referee_InfoTypedef *Referee_Init(UART_HandleTypeDef *referee_usart_handle);
 void RefereeSolve(uint8_t *data);
 
 extern Referee_InfoTypedef refree_info;

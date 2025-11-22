@@ -36,7 +36,7 @@ static void uart2_append_byte(uint8_t byte)
     uart2_receive_buffer[uart2_buffer_length++] = byte;
 }
 
-static uint8_t uart2_extract_frame(Rx_packed_t *frame)
+static uint8_t uart2_extract_frame(Rx_packed_t *frame) //从 UART2 的接收缓冲区中解析出完整、有效的数据帧
 {
     while (uart2_buffer_length >= sizeof(Rx_packed_t))
     {

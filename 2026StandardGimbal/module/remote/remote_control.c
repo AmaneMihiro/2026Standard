@@ -123,7 +123,7 @@ static void RC_Lost_Callback(void *id)
 /**
  * @brief 初始化遥控器,该函数会将遥控器注册到串口
  *
- * @attention 注意分配正确的串口硬件,遥控器在C板上使用USART3
+ * @attention 注意分配正确的串口硬件,遥控器在C板上使用USART3,在h7上使用USART5
  *
  */
 RC_ctrl_t *Remote_Control_Init(UART_HandleTypeDef *rc_usart_handle)

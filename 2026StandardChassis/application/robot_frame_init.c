@@ -33,6 +33,7 @@
 #include "ws2812.h"
 #include "buzzer.h"
 #include "vofa.h"
+#include "referee.h"
 
 #include "bsp_dwt.h"
 #include "bsp_usart.h"
@@ -42,6 +43,7 @@
 
 float init_time;
 RC_ctrl_t *rc_data;
+Referee_InfoTypedef *referee_data;
 
 static void Frame_MCU_Init(void)
 {
@@ -57,7 +59,9 @@ static void Frame_Device_Init(void)
 
 	rc_data = Remote_Control_Init(&huart5);
 	
-	VOFA_Register(&huart7);
+	referee_data = Referee_Init(&huart7);
+
+	//VOFA_Register(&huart7);
 	// BMI088_Init(&hspi2,0);
 	
 	Chassis_Init();
