@@ -82,6 +82,8 @@ static void Frame_Task_Init(void)
 	   INS_Task_Init( );
 
 	   Procotol_Task_Init( );
+
+	   VPC_Task_Init();
 }
 
 void Robot_Frame_Init(void)
