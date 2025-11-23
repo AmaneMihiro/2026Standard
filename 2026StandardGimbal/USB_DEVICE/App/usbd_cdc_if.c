@@ -22,7 +22,8 @@
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "stdint.h"
+#include "Serial.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -264,7 +265,20 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 11 */
-  USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
+   /* Defensive checks */
+  if (Buf == NULL || Len == NULL || *Len == 0) {
+    USBD_CDC_ReceivePacket(&hUsbDeviceHS);
+    return (USBD_OK);
+  }
+
+  /* Copy received bytes into application buffer (size of receive_packet_t) */
+  uint32_t copyLen = (*Len > sizeof(buf_receive_from_nuc)) ? sizeof(buf_receive_from_nuc) : *Len;
+  memcpy(buf_receive_from_nuc, Buf, copyLen);
+
+  /* Call UnPack which performs CRC check and will notify VPC (uses FromISR when appropriate) */
+  UnPack_Data_ROS2(buf_receive_from_nuc, &aim_packet_from_nuc, (uint16_t)copyLen);
+
+  /* Re-arm reception for next OUT packet */
   USBD_CDC_ReceivePacket(&hUsbDeviceHS);
   return (USBD_OK);
   /* USER CODE END 11 */

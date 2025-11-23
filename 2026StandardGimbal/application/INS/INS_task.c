@@ -24,6 +24,9 @@
 
 #include "message_center.h"
 
+#include "VPC_Task.h"
+#include "semphr.h"
+
 #define INS_TASK_PERIOD 1 // ms
 
 osThreadId_t INS_task_handel;
@@ -62,6 +65,7 @@ static void INS_Task(void *argument)
 		ins_dt = DWT_GetDeltaT(&INS_dwt_count);
 
 		INS_Calculate(ins_dt);
+		xSemaphoreGive(g_xSemVPC);
 
 		INS_task_diff = osKernelGetTickCount( ) - time;
 		time          = osKernelGetTickCount( );
