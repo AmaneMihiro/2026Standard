@@ -29,6 +29,11 @@ static uint8_t rc_init_flag = 0; // 遥控器初始化标志位
 static USART_t *rc_usart_instance;
 static supervisor_t *rc_supervisor_instance; // 监视器实例
 
+uint8_t* Remote_GetKeyBroadPtr()
+{
+	return (uint8_t*)&(rc_ctrl.keyboard);
+}
+
 /**
  * @brief 矫正遥控器摇杆的值,超过660或者小于-660的值都认为是无效值,置0
  *

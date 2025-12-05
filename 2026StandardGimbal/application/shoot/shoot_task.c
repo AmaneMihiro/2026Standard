@@ -22,6 +22,7 @@
 #include "gimbal.h"
 
 #include "message_center.h"
+#include "shoot_motor.h"
 
 #define SHOOT_TASK_PERIOD 5 // ms
 
@@ -41,8 +42,8 @@ void Shoot_Task_Init( void )
     };
     shoot_task_handel = osThreadNew( Shoot_Task, NULL, &attr );
 
-    shoot_publisher = Publisher_Register("shoot_transmit_feed", sizeof(shoot_behaviour_t));
-    shoot_subscriber = Subscriber_Register("shoot_receive_cmd", sizeof(shoot_cmd_t));
+    // shoot_publisher = Publisher_Register("shoot_transmit_feed", sizeof(shoot_behaviour_t));
+    // shoot_subscriber = Subscriber_Register("shoot_receive_cmd", sizeof(shoot_cmd_t));
 }
 
 uint32_t shoot_task_diff;
@@ -55,6 +56,7 @@ static void Shoot_Task( void *argument )
     {
         Get_Shoot_Mode();
         Shoot_State_Machine();
+        Shoot_Motor_Send();
         
         shoot_task_diff = osKernelGetTickCount( ) - time;
         time = osKernelGetTickCount( );

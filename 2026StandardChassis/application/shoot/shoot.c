@@ -18,11 +18,11 @@
 uint16_t target_shoot_frequence = 0;
 
 PID_t chassis_2006_speed_pid = {
-    .kp = 1.0f,
-    .ki = 0.0f,
+    .kp = 30.0f,
+    .ki = 3.0f,
     .kd = 0.0f,
-    .output_limit = 10000.0f,
-    .integral_limit = 10000.0f,
+    .output_limit = 9000.0f,
+    .integral_limit = 9000.0f,
     .dead_band = 0.0f,
 };
 
@@ -84,6 +84,8 @@ void Shoot_Stop(void)
     DJI_Motor_Stop(chassis_shoot_motor);
 }
 
+
+
 void Shoot_State_Machine(void)
 {
     static uint16_t init_count = 0;
@@ -101,8 +103,9 @@ void Shoot_State_Machine(void)
             Shoot_Stop();
             break;
         case SHOOT_MODE_FIRE:
-            Shoot_Enable();
-            DJI_Motor_Set_Ref(chassis_shoot_motor, target_shoot_frequence);
+            // target_shoot_frequence = 50;
+            // Shoot_Enable();
+            // DJI_Motor_Set_Ref(chassis_shoot_motor, target_shoot_frequence);
             break;
         default:
             Shoot_Stop();
@@ -113,4 +116,5 @@ void Shoot_State_Machine(void)
     {
         Shoot_Stop();
     }
+    DJI_Motor_Control();
 }

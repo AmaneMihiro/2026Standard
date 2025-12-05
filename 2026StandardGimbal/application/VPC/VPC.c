@@ -1,5 +1,4 @@
 #include "VPC.h"
-#include "VPC_task.h"
 #include "Serial.h"
 #include "INS.h"
 #include "gimbal.h"

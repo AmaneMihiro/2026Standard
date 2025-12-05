@@ -118,6 +118,7 @@ typedef enum
 	M2006,
 	DM4310,
 	DM8009P,
+	shoot,
 } motor_type_e;
 
 typedef enum

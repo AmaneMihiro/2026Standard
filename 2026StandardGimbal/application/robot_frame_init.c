@@ -21,7 +21,6 @@
 #include "daemon_task.h"
 #include "INS_task.h"
 #include "procotol_task.h"
-#include "vpc_task.h"
 
 #include "chassis.h"
 #include "gimbal.h"
@@ -29,7 +28,7 @@
 #include "daemon.h"
 #include "INS.h"
 #include "procotol.h"
-#include "vpc.h"
+#include "VPC.h"
 
 #include "bmi088.h"
 #include "ws2812.h"
@@ -64,6 +63,7 @@ static void Frame_Device_Init(void)
 
     Gimbal_Init();
     Shoot_Init();
+    VPC_Init();
 }
 
 static void Frame_Task_Init(void)
@@ -86,7 +86,6 @@ static void Frame_Task_Init(void)
 
     Procotol_Task_Init();
 
-    VPC_Task_Init();
 }
 
 void Robot_Frame_Init(void)

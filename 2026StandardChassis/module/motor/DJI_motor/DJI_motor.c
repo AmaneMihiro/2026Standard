@@ -30,7 +30,7 @@ void DJI_Motor_Error_Detection(DJI_motor_instance_t *motor);
  * can1: [0]:0x1FF,[1]:0x200,[2]:0x2FF
  * can2: [3]:0x1FF,[4]:0x200,[5]:0x2FF
  */
-static CAN_instance_t sender_assignment[15] = {
+ static CAN_instance_t sender_assignment[15] = {
     [0] = {.can_handle = &hfdcan1, .tx_header.Identifier = 0x1ff, .tx_header.IdType = FDCAN_STANDARD_ID, .tx_header.DataLength = FDCAN_DLC_BYTES_8, .tx_buff = {0}},
     [1] = {.can_handle = &hfdcan1, .tx_header.Identifier = 0x200, .tx_header.IdType = FDCAN_STANDARD_ID, .tx_header.DataLength = FDCAN_DLC_BYTES_8, .tx_buff = {0}},
     [2] = {.can_handle = &hfdcan1, .tx_header.Identifier = 0x2ff, .tx_header.IdType = FDCAN_STANDARD_ID, .tx_header.DataLength = FDCAN_DLC_BYTES_8, .tx_buff = {0}},

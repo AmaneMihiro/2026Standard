@@ -24,7 +24,7 @@
 
 #include "message_center.h"
 
-#include "VPC_Task.h"
+#include "VPC.h"
 #include "semphr.h"
 
 #define INS_TASK_PERIOD 1 // ms
@@ -45,8 +45,8 @@ void INS_Task_Init(void)
 	};
 	INS_task_handel = osThreadNew(INS_Task, NULL, &attr);
 
-	INS_publisher  = Publisher_Register("INS_transmit_feed", sizeof(INS_behaviour_t));
-	INS_subscriber = Subscriber_Register("INS_receive_cmd", sizeof(INS_cmd_t));
+	// INS_publisher  = Publisher_Register("INS_transmit_feed", sizeof(INS_behaviour_t));
+	// INS_subscriber = Subscriber_Register("INS_receive_cmd", sizeof(INS_cmd_t));
 }
 
 uint32_t INS_task_diff;

@@ -37,5 +37,6 @@ void Shoot_Enable(void);
 void Shoot_Stop(void);
 void Get_Shoot_Mode(void);
 void Shoot_State_Machine(void);
+void Shoot_SetAll(float spped);
 
 #endif /* __SHOOT_H__ */

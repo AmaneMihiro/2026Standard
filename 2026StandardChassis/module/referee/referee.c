@@ -32,7 +32,7 @@ static supervisor_t *referee_supervisor_instance;
 void RefereeSolve(uint8_t *data);
 void RefereeInit()
 {
-	USART_Service_Init(&huart10);
+	USART_Service_Init(&huart7);
 }
 
 void RefereeSolve(uint8_t *data) //裁判系统的信息处理
@@ -122,10 +122,11 @@ static void Referee_Rx_Callback(void)   //接收到数据后的中断回调处�
 } 
 
 
-static void Referee_Lost_Callback(void) //裁判系统掉线未正常工作则重启
+static void Referee_Lost_Callback(void *argument) //裁判系统掉线未正常工作则重启
 {
 	memset(&refree_info,0,sizeof(refree_info));
 	USART_Service_Init(referee_usart_instance);
+	(void)argument;
 }
 
 
