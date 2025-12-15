@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : usbd_cdc_if.c
-  * @version        : v1.0_Cube
-  * @brief          : Usb device for Virtual Com Port.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : usbd_cdc_if.c
+ * @version        : v1.0_Cube
+ * @brief          : Usb device for Virtual Com Port.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -184,7 +184,7 @@ static int8_t CDC_DeInit_HS(void)
 static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 {
   /* USER CODE BEGIN 10 */
-  switch(cmd)
+  switch (cmd)
   {
   case CDC_SEND_ENCAPSULATED_COMMAND:
 
@@ -265,22 +265,58 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 11 */
-   /* Defensive checks */
-  if (Buf == NULL || Len == NULL || *Len == 0) {
+  /* Defensive checks */
+  if (Buf == NULL || Len == NULL || *Len == 0)
+  {
     USBD_CDC_ReceivePacket(&hUsbDeviceHS);
     return (USBD_OK);
   }
+  /*根据帧头来判断接收到的是哪个数据包*/
+  // for (int i = 0; i < *Len; i++)
+  // {
+  switch (Buf[0])
+  {
+    /*导航部分*/
+  case 0xA5:
+  {
+    // /* Copy received bytes into application buffer (size of receive_packet_t) */
+    // uint32_t copyLen = (*Len > sizeof(nv_buf_receive_from_nuc)) ? sizeof(nv_buf_receive_from_nuc) : *Len;
+    // memcpy(nv_buf_receive_from_nuc, Buf, copyLen);
 
-  /* Copy received bytes into application buffer (size of receive_packet_t) */
-  uint32_t copyLen = (*Len > sizeof(buf_receive_from_nuc)) ? sizeof(buf_receive_from_nuc) : *Len;
-  memcpy(buf_receive_from_nuc, Buf, copyLen);
+    // /* Call UnPack which performs CRC check and will notify VPC (uses FromISR when appropriate) */
+    // NV_UnPack_Data_ROS2(nv_buf_receive_from_nuc, &nv_aim_packet_from_nuc, (uint16_t)copyLen);
+    /* Copy received bytes into application buffer (size of receive_packet_t) */
+    
+    uint32_t copyLen = (*Len > sizeof(buf_receive_from_nuc)) ? sizeof(buf_receive_from_nuc) : *Len;
+    memcpy(buf_receive_from_nuc, Buf, copyLen);
 
-  /* Call UnPack which performs CRC check and will notify VPC (uses FromISR when appropriate) */
-  UnPack_Data_ROS2(buf_receive_from_nuc, &aim_packet_from_nuc, (uint16_t)copyLen);
+    /* Call UnPack which performs CRC check and will notify VPC (uses FromISR when appropriate) */
+    UnPack_Data_ROS2(buf_receive_from_nuc, &aim_packet_from_nuc, (uint16_t)copyLen);
+  }
+  break;
+    /*视觉部分*/
+  // case 0xA6:
+  // {
+  //   /* Copy received bytes into application buffer (size of receive_packet_t) */
+  //   uint32_t copyLen = (*Len > sizeof(vs_buf_receive_from_nuc)) ? sizeof(vs_buf_receive_from_nuc) : *Len;
+  //   memcpy(vs_buf_receive_from_nuc, Buf, copyLen);
 
-  /* Re-arm reception for next OUT packet */
+  //   /* Call UnPack which performs CRC check and will notify VPC (uses FromISR when appropriate) */
+  //   VS_UnPack_Data_ROS2(vs_buf_receive_from_nuc, &vs_aim_packet_from_nuc, (uint16_t)copyLen);
+  // }
+  // break;
+  default:
+
+    break;
+  }
+
+  /* 重新使能USB，CDC，等待下一个数据包接收 */
   USBD_CDC_ReceivePacket(&hUsbDeviceHS);
   return (USBD_OK);
+
+// USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
+// USBD_CDC_ReceivePacket(&hUsbDeviceHS);
+// return (USBD_OK);
   /* USER CODE END 11 */
 }
 

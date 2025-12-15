@@ -41,8 +41,8 @@ float chassis_mode_last = 0;
 uint16_t init_count = 0;
 
 PID_t chassis_3508_speed_pid = {
-    .kp = 15.0f,
-    .ki = 0.0f,
+    .kp = 5.0f,
+    .ki = 0.2f,
     .kd = 0.0f,
     .output_limit = 10000.0f,
     .integral_limit = 10000.0f,
@@ -77,7 +77,7 @@ PID_t gimbal_4310_angle_pid = {
 };
 
 PID_t gimbal_4310_speed_pid = {
-    .kp = 0.8f,
+    .kp = 1.0f,
     .ki = 0.001f,
     .kd = 0.0f,
     .output_limit = 10.0f,

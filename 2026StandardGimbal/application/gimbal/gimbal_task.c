@@ -32,7 +32,7 @@
 #include "shoot.h"
 #include "shoot_motor.h"
 
-#define GIMBAL_TASK_PERIOD 1 // ms
+#define GIMBAL_TASK_PERIOD   1 // ms
 
 osThreadId_t gimbal_task_handel;
 
@@ -43,7 +43,7 @@ static void Gimbal_Task(void *argument);
 
 void Gimbal_Task_Init(void)
 {
-    g_xSemVPC = xSemaphoreCreateBinary();
+    //g_xSemVPC = xSemaphoreCreateBinary();
     const osThreadAttr_t attr = {
         .name = "Gimbal_Task",
         .stack_size = 128 * 8,
@@ -60,8 +60,6 @@ uint32_t gimbal_task_diff;
 static void Gimbal_Task(void *argument)
 {
     static uint8_t shoot_cnt = 0;
-    // Shoot_Enable();
-    // Shoot_SetAll(350);
     HAL_UART_Receive_IT(&huart2, &uart2_current_byte, 1);
     uint32_t time = osKernelGetTickCount();
 
@@ -73,8 +71,11 @@ static void Gimbal_Task(void *argument)
         Chassis_Control();
         uart2_online_check();
 
-        VPC_Receive();
-        Pack_And_Send_Data_ROS2(&aim_packet_to_nuc);
+        //VPC传输处理
+         VPC_Receive(); //接收准备发送的数据
+         NV_Pack_And_Send_Data_ROS2(&nv_aim_packet_to_nuc); //导航数据包发送
+        // // VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); //视觉数据包发送
+        // Pack_And_Send_Data_ROS2(&aim_packet_to_nuc);
         // if (shoot_cnt % 5 == 0)
         // {
         //     shoot_cnt = 0;

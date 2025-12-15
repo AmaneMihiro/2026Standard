@@ -34,14 +34,14 @@ float angle_yaw = 0;
 PID_t gimbal_6020_angle_pid = {
     .kp = 12.0f,
     .ki = 0.0f,
-    .kd = 480.0f,
+    .kd = 500.0f,
     .output_limit = 10.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
 };
 
 PID_t gimbal_6020_speed_pid = {
-    .kp = 400.0f,
+    .kp = 250.0f,
     .ki = 400.0f,
     .kd = 0.0f,
     .output_limit = 25000.0f,
@@ -118,7 +118,7 @@ void Get_Gimbal_Mode(void)
 void Chassis_Control(void)
 {
     uart2_tx_message.chassis_mode = (gimbal_mode == GIMBAL_MODE_MANUAL);
-    uart2_tx_message.delta_target_angle_yaw = target_angle_yaw - angle_yaw;
+    uart2_tx_message.delta_target_angle_yaw = -(target_angle_yaw - angle_yaw);
     uart2_tx_message.target_x_speed = rc_data->rc.rocker_l1 * 0.005f;
     uart2_tx_message.target_y_speed = rc_data->rc.rocker_l_ * 0.005f;
     if (rc_data->rc.dial)
@@ -181,19 +181,19 @@ void Gimbal_State_Machine(void)
 
 void Remote_Deadzone_Control(void)
 {
-    if (abs(rc_data->rc.rocker_r_) <= 66)
+    if (abs(rc_data->rc.rocker_r_) <= 20)
     {
         rc_data->rc.rocker_r_ = 0;
     }
-    if (abs(rc_data->rc.rocker_r1) <= 66)
+    if (abs(rc_data->rc.rocker_r1) <= 20)
     {
         rc_data->rc.rocker_r1 = 0;
     }
-    if (abs(rc_data->rc.rocker_l_) <= 66)
+    if (abs(rc_data->rc.rocker_l_) <= 20)
     {
         rc_data->rc.rocker_l_ = 0;
     }
-    if (abs(rc_data->rc.rocker_l1) <= 66)
+    if (abs(rc_data->rc.rocker_l1) <= 20)
     {
         rc_data->rc.rocker_l1 = 0;
     }

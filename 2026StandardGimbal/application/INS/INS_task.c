@@ -65,7 +65,7 @@ static void INS_Task(void *argument)
 		ins_dt = DWT_GetDeltaT(&INS_dwt_count);
 
 		INS_Calculate(ins_dt);
-		xSemaphoreGive(g_xSemVPC);
+		//xSemaphoreGive(g_xSemVPC);
 
 		INS_task_diff = osKernelGetTickCount( ) - time;
 		time          = osKernelGetTickCount( );

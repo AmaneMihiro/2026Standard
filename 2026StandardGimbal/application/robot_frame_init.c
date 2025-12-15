@@ -58,7 +58,7 @@ static void Frame_Device_Init(void)
 
     rc_data = Remote_Control_Init(&huart5);
 
-    VOFA_Register(&huart7);
+    //VOFA_Register(&huart7);
     // BMI088_Init(&hspi2,0);
 
     Gimbal_Init();
