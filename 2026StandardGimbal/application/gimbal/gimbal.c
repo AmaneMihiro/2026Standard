@@ -22,27 +22,28 @@
 #include "remote_control.h"
 #include "INS.h"
 
-float angle_pitch_offset = 5.20f;
+float angle_pitch_offset = 5.22f;
 uint8_t gimbal_mode = 0;
 uint8_t gimbal_mode_last = 0;
 float target_angle_pitch = 0;
 float target_angle_yaw = 0;
+float target_angle_pitch_temp = 0;
 float angle_pitch = 0;
 float angle_pitch_motor = 0;
 float angle_yaw = 0;
 
 PID_t gimbal_6020_angle_pid = {
-    .kp = 12.0f,
+    .kp = 750.0f,
     .ki = 0.0f,
-    .kd = 500.0f,
-    .output_limit = 10.0f,
+    .kd = 1000.0f,
+    .output_limit = 50.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
 };
 
 PID_t gimbal_6020_speed_pid = {
-    .kp = 250.0f,
-    .ki = 400.0f,
+    .kp = 500.0f,
+    .ki = 0.0f,
     .kd = 0.0f,
     .output_limit = 25000.0f,
     .integral_limit = 25000.0f,
@@ -131,12 +132,27 @@ void Chassis_Control(void)
     }
 }
 
+float Delta_Target_Angle_Control(void)
+{
+    if (fabs(target_angle_pitch - target_angle_pitch_temp) >= 0.0015f)
+    {
+        return (target_angle_pitch - target_angle_pitch_temp) >= 0
+                   ? (target_angle_pitch_temp + 0.0015f)
+                   : (target_angle_pitch_temp - 0.0015f);
+    }
+    else
+    {
+        return target_angle_pitch;
+    }
+}
+
 void Gimbal_State_Machine(void)
 {
     static uint16_t init_count = 0;
 
+    // angle_pitch_motor = gimbal_motor_pitch->measure.rad - 5.22f;
+    // angle_pitch = -INS.Pitch;
     angle_pitch = gimbal_motor_pitch->measure.rad;
-    angle_pitch = -INS.Pitch;
     angle_yaw = INS.Yaw;
     if (init_count < 1000)
     {
@@ -147,17 +163,19 @@ void Gimbal_State_Machine(void)
     {
     case GIMBAL_MODE_AUTO: // 目标参数待修改为nuc自瞄目标角度
         target_angle_pitch = angle_pitch;
+        target_angle_pitch_temp = angle_pitch;
         target_angle_yaw = angle_yaw;
         DJI_Motor_Stop(gimbal_motor_pitch);
         gimbal_mode_last = GIMBAL_MODE_AUTO;
         break;
 
     case GIMBAL_MODE_MANUAL:
-        target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.000005f;
+        target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.0000025f;
         target_angle_pitch = Value_Limit(target_angle_pitch, angle_pitch_offset - 0.30f, angle_pitch_offset + 0.50f);
         target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.00002f;
 
-        DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch);
+        target_angle_pitch_temp = Delta_Target_Angle_Control();
+        DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
         DJI_Motor_Enable(gimbal_motor_pitch);
         DJI_Motor_Control();
         gimbal_mode_last = GIMBAL_MODE_MANUAL;
@@ -165,6 +183,7 @@ void Gimbal_State_Machine(void)
 
     case GIMBAL_MODE_STOP:
         target_angle_pitch = angle_pitch;
+        target_angle_pitch_temp = angle_pitch;
         target_angle_yaw = angle_yaw;
         DJI_Motor_Stop(gimbal_motor_pitch);
         gimbal_mode_last = GIMBAL_MODE_STOP;
@@ -172,6 +191,7 @@ void Gimbal_State_Machine(void)
 
     default:
         target_angle_pitch = angle_pitch;
+        target_angle_pitch_temp = angle_pitch;
         target_angle_yaw = angle_yaw;
         DJI_Motor_Stop(gimbal_motor_pitch);
         gimbal_mode_last = GIMBAL_MODE_STOP;

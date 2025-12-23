@@ -472,7 +472,7 @@ void DJI_Motor_Control(void)
 
         /* ------------------------------handler------------------------------------*/
         // 获取最终输出
-        motor->target.current = (int16_t)pid_ref;
+        motor->target.current = (int16_t)pid_ref - 1000;
 
         // 分组填入发送数据
         group = motor->sender_group;

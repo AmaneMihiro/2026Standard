@@ -39,10 +39,11 @@ float target_angle_yaw = 0;
 uint8_t chassis_mode = 0;
 float chassis_mode_last = 0;
 uint16_t init_count = 0;
+float chassis_actual_omega = 0;
 
 PID_t chassis_3508_speed_pid = {
-    .kp = 5.0f,
-    .ki = 0.2f,
+    .kp = 10.0f,
+    .ki = 0.01f,
     .kd = 0.0f,
     .output_limit = 10000.0f,
     .integral_limit = 10000.0f,
@@ -68,9 +69,9 @@ PID_t chassis_6020_speed_pid = {
 };
 
 PID_t gimbal_4310_angle_pid = {
-    .kp = 20.0f,
+    .kp = 25.0f,
     .ki = 0.0f,
-    .kd = 500.0f,
+    .kd = 600.0f,
     .output_limit = 5.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
@@ -78,7 +79,7 @@ PID_t gimbal_4310_angle_pid = {
 
 PID_t gimbal_4310_speed_pid = {
     .kp = 1.0f,
-    .ki = 0.001f,
+    .ki = 0.0005f,
     .kd = 0.0f,
     .output_limit = 10.0f,
     .integral_limit = 10.0f,
@@ -682,6 +683,7 @@ void Chassis_State_Machine(void)
         chassis_mode_last = CHASSIS_MODE_STOP;
         break;
     case CHASSIS_MODE_MANUAL:
+        target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, target_angle_yaw);
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
