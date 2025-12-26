@@ -20,4 +20,6 @@
 
 #define BMI088_Frame 1
 
+#define BULLET_V 35		 // 弹速, m/s     34.0f---24
+
 #endif /* __ROBOT_FRAME_CONFIG_H__ */

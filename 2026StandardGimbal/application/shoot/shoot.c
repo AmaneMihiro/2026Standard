@@ -18,6 +18,9 @@
 #include "rs485.h"
 #include "shoot_motor.h"
 
+#define BUllET_V 35   //弹速 m/s
+#define SHOOT_V 5000  //摩擦轮转速 rpm
+
 uint8_t shoot_mode = 0;
 uint8_t shoot_mode_last = 0;
 
@@ -184,7 +187,7 @@ void Shoot_SetAll(float speed)
 {
     Shoot_Motor_SetTar(shoot_motor_1,speed);
     Shoot_Motor_SetTar(shoot_motor_2,speed);
-    Shoot_Motor_SetTar(shoot_motor_3,speed);
+    Shoot_Motor_SetTar(shoot_motor_3,-speed);
 }
 
 void Get_Shoot_Mode(void)
@@ -222,12 +225,14 @@ void Shoot_State_Machine(void)
         case SHOOT_MODE_FIRE:
             uart2_tx_message.shoot_mode = 1;
             Shoot_Enable();
-            Shoot_SetAll(1000);
+            Shoot_SetAll(SHOOT_V);
             break;
 
         case SHOOT_MODE_READY:
             uart2_tx_message.shoot_mode = 0;
-            Shoot_Stop();
+            //Shoot_Stop();
+            Shoot_Enable();
+            Shoot_SetAll(SHOOT_V);
             break;
 
         case SHOOT_MODE_STOP:

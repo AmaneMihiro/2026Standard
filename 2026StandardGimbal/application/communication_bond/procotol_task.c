@@ -40,8 +40,8 @@ void Procotol_Task_Init( void )
     };
     procotol_task_handel = osThreadNew( Procotol_Task, NULL, &attr );
 
-    // procotol_publisher = Publisher_Register("procotol_transmit_feed", 0);
-    // procotol_subscriber = Subscriber_Register("procotol_receive_cmd", 0);
+     procotol_publisher = Publisher_Register("procotol_transmit_feed", 0);
+     procotol_subscriber = Subscriber_Register("procotol_receive_cmd", 0);
 }
 
 uint32_t procotol_task_diff;

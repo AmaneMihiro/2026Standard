@@ -72,9 +72,10 @@ static void Gimbal_Task(void *argument)
         uart2_online_check();
 
         //VPC传输处理
+        Choose_VPC_Type();
          VPC_Receive(); //接收准备发送的数据
-         NV_Pack_And_Send_Data_ROS2(&nv_aim_packet_to_nuc); //导航数据包发送
-        // // VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); //视觉数据包发送
+         //NV_Pack_And_Send_Data_ROS2(&nv_aim_packet_to_nuc); //导航数据包发送
+         VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); //视觉数据包发送
         // Pack_And_Send_Data_ROS2(&aim_packet_to_nuc);
         // if (shoot_cnt % 5 == 0)
         // {

@@ -103,9 +103,9 @@ void Shoot_State_Machine(void)
             Shoot_Stop();
             break;
         case SHOOT_MODE_FIRE:
-            // target_shoot_frequence = 50;
-            // Shoot_Enable();
-            // DJI_Motor_Set_Ref(chassis_shoot_motor, target_shoot_frequence);
+             target_shoot_frequence = 450;
+             Shoot_Enable();
+             DJI_Motor_Set_Ref(chassis_shoot_motor, target_shoot_frequence);
             break;
         default:
             Shoot_Stop();

@@ -52,7 +52,9 @@
 #define APP_RX_DATA_SIZE  2048
 #define APP_TX_DATA_SIZE  2048
 /* USER CODE BEGIN EXPORTED_DEFINES */
-
+#define CDC_RX_CACHE_SIZE 1024
+extern uint8_t cdc_rx_cache[CDC_RX_CACHE_SIZE];
+extern uint32_t cdc_rx_len;
 /* USER CODE END EXPORTED_DEFINES */
 
 /**

@@ -21,6 +21,8 @@
 #include "DM_motor.h"
 #include "remote_control.h"
 #include "INS.h"
+#include "Serial.h"
+#include "VPC.h"
 
 float angle_pitch_offset = 5.20f;
 uint8_t gimbal_mode = 0;
@@ -146,11 +148,17 @@ void Gimbal_State_Machine(void)
     switch (gimbal_mode)
     {
     case GIMBAL_MODE_AUTO: // 目标参数待修改为nuc自瞄目标角度
-        target_angle_pitch = angle_pitch;
-        target_angle_yaw = angle_yaw;
-        DJI_Motor_Stop(gimbal_motor_pitch);
-        gimbal_mode_last = GIMBAL_MODE_AUTO;
-        break;
+        if (!vs_aim_packet_from_nuc.input_data.shoot_pitch &&!vs_aim_packet_from_nuc.input_data.shoot_yaw)
+        {
+            target_angle_pitch = vs_aim_packet_from_nuc.input_data.shoot_pitch;
+            target_angle_yaw = vs_aim_packet_from_nuc.input_data.shoot_yaw;
+            // DJI_Motor_Stop(gimbal_motor_pitch);
+            DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch);
+            DJI_Motor_Enable(gimbal_motor_pitch);
+            DJI_Motor_Control();
+            gimbal_mode_last = GIMBAL_MODE_AUTO;
+            break;
+        }
 
     case GIMBAL_MODE_MANUAL:
         target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.000005f;

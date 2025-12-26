@@ -49,7 +49,8 @@ void Chassis_Task_Init(void)
 }
 
 uint32_t chassis_task_diff;
-
+uint32_t TTT = 0;
+uint32_t AAA = 0;
 static void Chassis_Task(void *argument)
 {
     HAL_UART_Receive_IT(&huart2, &uart2_current_byte, 1);
@@ -57,6 +58,9 @@ static void Chassis_Task(void *argument)
 
     for (;;)
     {
+        TTT = chassis_motor_drive_1->motor_controller.pid_ref;
+        AAA = chassis_motor_drive_1->measure.speed;
+        
         Chassis_State_Machine();
         uart2_online_check();
 

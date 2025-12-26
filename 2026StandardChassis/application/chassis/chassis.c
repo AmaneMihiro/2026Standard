@@ -41,8 +41,8 @@ float chassis_mode_last = 0;
 uint16_t init_count = 0;
 
 PID_t chassis_3508_speed_pid = {
-    .kp = 5.0f,
-    .ki = 0.2f,
+    .kp = 2.5f,
+    .ki = 0.43f,
     .kd = 0.0f,
     .output_limit = 10000.0f,
     .integral_limit = 10000.0f,

@@ -16,37 +16,47 @@
 #include "stdbool.h"
 // 下面是为和ROS2上位机沟通而定制的结构体(zy)
 
+typedef struct
+{
+  uint8_t sof;
+  uint8_t crc8;
+} __attribute__((packed)) FrameHeader_t;
+
+typedef struct
+{
+  uint16_t crc16;
+} __attribute__((packed)) FrameTailer_t;
+
+typedef struct
+{
+  uint64_t config; // 配置参数，通常用于传递模式、开关、标志位等综合配置信息（如bit位控制不同功能）
+  float target_pose[3]; // 目标三维坐标，通常为目标在世界/相机坐标系下的 x, y, z
+  float curr_yaw; // 当前云台的 yaw 角度（水平旋转角）
+  float curr_pitch; // 当前云台的 pitch 角度（俯仰角）
+  uint8_t enemy_color; // 敌方颜色（如 0=红，1=蓝），用于自瞄识别目标阵营
+  uint8_t shoot_config; // 射击配置，通常用于控制射击模式、发弹策略等
+} __attribute__((packed)) OutputData_t;
+
+typedef struct
+{
+  float shoot_yaw;   // 经过自瞄预测的yaw角度
+  float shoot_pitch; // 经过自瞄预测的pitch角度
+  uint8_t fire;      // 是否发弹
+} __attribute__((packed)) InputData_t;
+
 /*导航的发送结构体aim to nuc*/
 typedef struct
 {
-  // uint8_t header; // 0x5A   帧头
+  uint8_t header; // 0x5A   帧头
 
-  // float roll;
-  // float pitch;
-  // float yaw;
-
-  // uint16_t timestamp; // 时间戳
-  // uint16_t robot_hp;  // 血量
-  // uint16_t game_time; // 比赛时间
-
-  // uint16_t checksum;
-  uint8_t header;           // 0x5A
-  uint8_t detect_color : 1; // 0-red 1-blue
-  uint8_t task_mode : 2;    // 0-auto 1-aim 2-buff
-  bool reset_tracker : 1;
-  uint8_t is_play : 1;
-  uint8_t change_target : 1;
-  uint8_t reserved : 2;
   float roll;
   float pitch;
   float yaw;
-  float aim_x;
-  float aim_y;
-  float aim_z;
-  
-  uint16_t timestamp; // (ms) board time
+
+  uint16_t timestamp; // 时间戳
   uint16_t robot_hp;  // 血量
-  uint16_t game_time; // (s) game time [0, 450]
+  uint16_t game_time; // 比赛时间
+
   uint16_t checksum;
 } __attribute__((packed)) nv_send_packet_t;
 
@@ -70,46 +80,81 @@ typedef struct
   uint16_t checksum;
 } __attribute__((packed)) nv_receive_packet_t;
 
-/*视觉的发送结构体aim to nuc*/
+// /*传统视觉的发送结构体aim to nuc*/
+// typedef struct
+// {
+//   uint8_t header;           // 0x5A
+//   uint8_t detect_color : 1; // 0-red 1-blue
+//   uint8_t task_mode : 2;    // 0-auto 1-aim 2-buff
+//   uint8_t reset_tracker : 1;
+//   uint8_t is_play : 1;
+//   uint8_t change_target : 1;
+//   uint8_t reserved : 2;
+//   float roll;
+//   float pitch;
+//   float yaw;
+//   float aim_x;
+//   float aim_y;
+//   float aim_z;
+//   uint16_t game_time; // (s) game time [0, 450]
+//   uint32_t timestamp; // (ms) board time
+//   uint16_t checksum;
+// } __attribute__((packed)) vs_send_packet_t;
+
+// /*传统视觉的接收结构体aim from nuc*/
+// typedef struct
+// {
+//   uint8_t header;         // 0xA5
+//   uint8_t state : 2;      // 0-untracking 1-tracking-aim 2-tracking-buff
+//   uint8_t id : 3;         // aim: 0-outpost 6-guard 7-base
+//   uint8_t armors_num : 3; // 2-balance 3-outpost 4-normal
+
+//   // o-auto
+//   float yaw;
+//   float pitch;
+
+//   float yaw_diff;
+//   float pitch_diff;
+//   int fire_advice;
+
+//   uint16_t checksum;
+// } __attribute__((packed)) vs_receive_packet_t;
+
+/*新视觉的发送结构体aim to nuc*/
 typedef struct
 {
-  uint8_t header;           // 0x5A
-  uint8_t detect_color : 1; // 0-red 1-blue
-  uint8_t task_mode : 2;    // 0-auto 1-aim 2-buff
-  uint8_t reset_tracker : 1;
-  uint8_t is_play : 1;
-  uint8_t change_target : 1;
-  uint8_t reserved : 2;
-  float roll;
-  float pitch;
-  float yaw;
-  float aim_x;
-  float aim_y;
-  float aim_z;
-  uint16_t game_time; // (s) game time [0, 450]
-  uint32_t timestamp; // (ms) board time
-  uint16_t checksum;
+  FrameHeader_t frame_header;
+  OutputData_t output_data;
+  FrameTailer_t frame_tailer;
+  // uint8_t sof;
+  // uint8_t crc8;
+  // uint64_t config; // 配置参数，通常用于传递模式、开关、标志位等综合配置信息（如bit位控制不同功能）
+  // float target_pose0;
+  // float target_pose1;
+  // float target_pose2; // 目标三维坐标，通常为目标在世界/相机坐标系下的 x, y, z
+  // float curr_yaw; // 当前云台的 yaw 角度（水平旋转角）
+  // float curr_pitch; // 当前云台的 pitch 角度（俯仰角）
+  // uint8_t enemy_color; // 敌方颜色（如 0=红，1=蓝），用于自瞄识别目标阵营
+  // uint8_t shoot_config; // 射击配置，通常用于控制射击模式、发弹策略等
+  // uint8_t fire;      // 是否发弹
+  // uint16_t crc16;
 } __attribute__((packed)) vs_send_packet_t;
 
-/*视觉的接收结构体aim from nuc*/
+/*新视觉的接收结构体aim from nuc*/
 typedef struct
 {
-  uint8_t header;         // 0xA5
-  uint8_t state : 2;      // 0-untracking 1-tracking-aim 2-tracking-buff
-  uint8_t id : 3;         // aim: 0-outpost 6-guard 7-base
-  uint8_t armors_num : 3; // 2-balance 3-outpost 4-normal
-
-  // o-auto
-  float yaw;
-  float pitch;
-
-  float yaw_diff;
-  float pitch_diff;
-  int fire_advice;
-
-  uint16_t checksum;
+  FrameHeader_t frame_header;
+  InputData_t input_data;
+  FrameTailer_t frame_tailer;
+  // uint8_t sof;
+  // uint8_t crc8;
+  // float shoot_yaw;   // 经过自瞄预测的yaw角度
+  // float shoot_pitch; // 经过自瞄预测的pitch角度
+  // uint8_t fire;      // 是否发弹
+  // uint16_t crc16;
 } __attribute__((packed)) vs_receive_packet_t;
 
+/*单包发送结构体*/
 typedef struct
 {
   uint8_t header;           // 0x5A
@@ -132,6 +177,7 @@ typedef struct
 
 } __attribute__((packed)) send_packet_t;
 
+/*单包接收结构体*/
 typedef struct
 {
   uint8_t header;         // 0xA5
@@ -144,7 +190,7 @@ typedef struct
   float pitch;
 
   float yaw_diff;
-  
+
   float pitch_diff;
   int fire_advice;
 
@@ -160,18 +206,13 @@ extern vs_send_packet_t vs_aim_packet_to_nuc;
 extern receive_packet_t aim_packet_from_nuc;
 extern send_packet_t aim_packet_to_nuc;
 
+extern FrameHeader_t frame_header;
+extern InputData_t input_data;
+extern FrameTailer_t frame_tailer;
+
 extern uint8_t nv_buf_receive_from_nuc[sizeof(nv_receive_packet_t)]; // 具体应用在usb接收函数中（在CDC_if.c中）
 extern uint8_t vs_buf_receive_from_nuc[sizeof(vs_receive_packet_t)]; // 具体应用在usb接收函数中（在CDC_if.c中）
 extern uint8_t buf_receive_from_nuc[sizeof(receive_packet_t)];       // 具体应用在usb接收函数中（在CDC_if.c中）
-
-// extern protocol_parser_t nv_parser;
-// extern protocol_parser_t vs_parser;
-
-// extern uint8_t com_rx_buffer[];
-// extern uint16_t com_rx_write_index; // 写指针
-// extern uint16_t com_rx_read_index;  // 读指针（由解析器移动）
-
-// #define COM_RX_BUFFER_SIZE 1024 // 根据数据量调整，必须能容纳至少2个最大数据包
 
 int CDC_SendFeed(uint8_t *Fed, uint16_t Len); // CDC发送反馈数据的函数
 // ROS2发送代码
@@ -182,7 +223,7 @@ void NV_Send_Packet_Init(nv_send_packet_t *send_packet);
 void VS_Pack_And_Send_Data_ROS2(vs_send_packet_t *send_packet);
 void VS_UnPack_Data_ROS2(uint8_t *receive_buf, vs_receive_packet_t *receive_packet, uint16_t Len);
 void VS_Send_Packet_Init(vs_send_packet_t *send_packet);
-
+void VS_Receive_Packet_Init(vs_receive_packet_t *receive_packet);
 void Pack_And_Send_Data_ROS2(send_packet_t *send_packet);
 void UnPack_Data_ROS2(uint8_t *receive_buf, receive_packet_t *receive_packet, uint16_t Len);
 void Send_Packet_Init(send_packet_t *send_packet);

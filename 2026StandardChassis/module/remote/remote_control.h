@@ -1,5 +1,5 @@
 /**
-* @file remote_control.h
+ * @file remote_control.h
  * @author guatai (2508588132@qq.com)
  * @brief
  * @version 0.1
@@ -34,8 +34,8 @@
 #define RC_CH_VALUE_MAX ((uint16_t)1684)
 
 /* ----------------------- RC Switch Definition----------------------------- */
-#define RC_SW_UP ((uint16_t)1)   // 开关向上时的值
-#define RC_SW_MID ((uint16_t)3)  // 开关中间时的值
+#define RC_SW_UP ((uint16_t)1)	 // 开关向上时的值
+#define RC_SW_MID ((uint16_t)3)	 // 开关中间时的值
 #define RC_SW_DOWN ((uint16_t)2) // 开关向下时的值
 // 三个判断开关状态的宏
 #define switch_is_down(s) (s == RC_SW_DOWN)
@@ -67,6 +67,31 @@ typedef union
 {
 	struct // 用于访问键盘状态
 	{
+		// int16_t x;
+		// int16_t y;
+		// int16_t z;
+
+		// uint8_t l;
+		// uint8_t r;
+
+		// uint16_t W : 1;
+		// uint16_t S : 1;
+		// uint16_t A : 1;
+		// uint16_t D : 1;
+		// uint16_t SHIFT : 1;
+		// uint16_t CTRL : 1;
+		// uint16_t Q : 1;
+		// uint16_t E : 1;
+		// uint16_t R : 1;
+		// uint16_t F : 1;
+		// uint16_t G : 1;
+		// uint16_t Z : 1;
+		// uint16_t X : 1;
+		// uint16_t C : 1;
+		// uint16_t V : 1;
+		// uint16_t B : 1;
+
+		// uint16_t reserved;
 		uint16_t w    : 1;
 		uint16_t s    : 1;
 		uint16_t d    : 1;
@@ -97,7 +122,7 @@ typedef struct
 		int16_t rocker_l1; // 左竖直
 		int16_t rocker_r_; // 右水平
 		int16_t rocker_r1; // 右竖直
-		int16_t dial;      // 侧边拨轮
+		int16_t dial;	   // 侧边拨轮
 
 		uint8_t switch_left;  // 左侧开关
 		uint8_t switch_right; // 右侧开关
