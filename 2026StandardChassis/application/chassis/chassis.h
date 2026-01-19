@@ -17,6 +17,7 @@
 #include "DM_motor.h"
 #include "rs485.h"
 
+#define CHASSIS_MODE_AUTO 2
 #define CHASSIS_MODE_MANUAL 1
 #define CHASSIS_MODE_STOP 0
 

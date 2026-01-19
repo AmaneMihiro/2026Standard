@@ -14,10 +14,8 @@
 #include "INS.h"
 
 
-//extern SemaphoreHandle_t g_xSemVPC;
-
 extern void VPC_Init(void);
-extern void VPC_Receive(void);
+extern void VPC_UpdatePackets(void);
 extern void Choose_VPC_Type(void);
 //extern void VPC_SendTarget(void);
 #endif

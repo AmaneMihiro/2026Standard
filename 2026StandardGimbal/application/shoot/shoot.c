@@ -19,7 +19,7 @@
 #include "shoot_motor.h"
 
 #define BUllET_V 35   //弹速 m/s
-#define SHOOT_V 5000  //摩擦轮转速 rpm
+#define SHOOT_V 6000  //摩擦轮转速 rpm
 
 uint8_t shoot_mode = 0;
 uint8_t shoot_mode_last = 0;

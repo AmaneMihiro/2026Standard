@@ -16,10 +16,17 @@
 #include "DJI_motor.h"
 #include "DM_motor.h"
 #include "remote_control.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
+
 
 #define GIMBAL_MODE_AUTO 2
 #define GIMBAL_MODE_MANUAL 1
 #define GIMBAL_MODE_STOP 0
+
+#define CHASSIS_MODE_AUTO 2
+#define CHASSIS_MODE_MANUAL 1
+#define CHASSIS_MODE_STOP 0
 
 typedef struct 
 {
@@ -37,11 +44,15 @@ extern uint8_t gimbal_mode;
 extern uint8_t gimbal_mode_last;
 extern float target_angle_pitch;
 extern float target_angle_yaw;
+extern float target_angle_pitch_auto;
+extern float target_angle_yaw_auto;
+
+extern SemaphoreHandle_t g_xSemVPC;
 
 void Gimbal_Init(void);
 void Get_Gimbal_Mode(void);
 void Gimbal_State_Machine(void);
 void Chassis_Control(void);
 void Remote_Deadzone_Control(void);
-
+void Auto_Deadzone_Control(void);
 #endif /* __GIMBAL_H__ */

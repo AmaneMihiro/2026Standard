@@ -11,6 +11,9 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
+
+#define TARGET_STEP_PITCH 0.0015f
 
 #include "gimbal_task.h"
 #include "gimbal.h"
@@ -33,11 +36,16 @@ float target_angle_pitch_temp = 0;
 float angle_pitch = 0;
 float angle_pitch_motor = 0;
 float angle_yaw = 0;
+float target_angle_pitch_auto = 0;
+float target_angle_yaw_auto = 0;
+
+/* 记录上次视觉数据更新的时间，避免在数据间隙期间反复调整 */
+static uint32_t last_vision_update_tick = 0;
 
 PID_t gimbal_6020_angle_pid = {
-    .kp = 750.0f,
+    .kp = 750.0f, // 750.0f,
     .ki = 0.0f,
-    .kd = 1000.0f,
+    .kd = 1000.0f, /* 从 1000 降至 250，减少导数项放大噪声导致的振荡 */
     .output_limit = 50.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
@@ -98,6 +106,7 @@ void Gimbal_Init(void)
     gimbal_motor_pitch = DJI_Motor_Init(&gimbal_6020_init);
 }
 
+/*根据遥控器输入值判断云台模式*/
 void Get_Gimbal_Mode(void)
 {
     if (switch_is_up(rc_data->rc.switch_left))
@@ -118,12 +127,96 @@ void Get_Gimbal_Mode(void)
     }
 }
 
+/**
+ * @brief 根据云台模式获取底盘模式
+ * @param   mode 云台模式
+ * @retval  chassis_mode 底盘模式
+ */
+uint8_t Get_Chassis_Mode(uint8_t mode)
+{
+    uint8_t chassis_mode = CHASSIS_MODE_STOP;
+    switch (mode)
+    {
+    case GIMBAL_MODE_AUTO:
+        chassis_mode = CHASSIS_MODE_AUTO;
+        break;
+
+    case GIMBAL_MODE_MANUAL:
+        chassis_mode = CHASSIS_MODE_MANUAL;
+        break;
+
+    case GIMBAL_MODE_STOP:
+        chassis_mode = CHASSIS_MODE_STOP;
+        break;
+    default:
+        chassis_mode = CHASSIS_MODE_STOP;
+        break;
+    }
+    return chassis_mode;
+}
+
+/**
+ * @brief 根据云台模式获取底盘X方向速度
+ * @param   mode 云台模式
+ * @retval  chassis_x_speed 底盘X方向速度
+ */
+float Get_Chassis_X_Speed(uint8_t mode)
+{
+    float chassis_x_speed = 0;
+    switch (mode)
+    {
+    case GIMBAL_MODE_AUTO:
+        chassis_x_speed = nv_aim_packet_from_nuc.vx;
+        break;
+
+    case GIMBAL_MODE_MANUAL:
+        chassis_x_speed = rc_data->rc.rocker_l1 * 0.005f;
+        break;
+
+    case GIMBAL_MODE_STOP:
+        chassis_x_speed = rc_data->rc.rocker_l1 * 0.005f;
+        break;
+    default:
+        chassis_x_speed = rc_data->rc.rocker_l1 * 0.005f;
+        break;
+    }
+    return chassis_x_speed;
+}
+
+/**
+ * @brief 根据云台模式获取底盘Y方向速度
+ * @param   mode 云台模式
+ * @retval  chassis_y_speed 底盘Y方向速度
+ */
+float Get_Chassis_Y_Speed(uint8_t mode)
+{
+    float chassis_y_speed = 0;
+    switch (mode)
+    {
+    case GIMBAL_MODE_AUTO:
+        chassis_y_speed = nv_aim_packet_from_nuc.vy;
+        break;
+
+    case GIMBAL_MODE_MANUAL:
+        chassis_y_speed = rc_data->rc.rocker_l_ * 0.005f;
+        break;
+
+    case GIMBAL_MODE_STOP:
+        chassis_y_speed = rc_data->rc.rocker_l_ * 0.005f;
+        break;
+    default:
+        chassis_y_speed = rc_data->rc.rocker_l_ * 0.005f;
+        break;
+    }
+    return chassis_y_speed;
+}
+
 void Chassis_Control(void)
 {
-    uart2_tx_message.chassis_mode = (gimbal_mode == GIMBAL_MODE_MANUAL);
+    uart2_tx_message.chassis_mode = Get_Chassis_Mode(gimbal_mode); //(gimbal_mode == GIMBAL_MODE_MANUAL);
     uart2_tx_message.delta_target_angle_yaw = -(target_angle_yaw - angle_yaw);
-    uart2_tx_message.target_x_speed = rc_data->rc.rocker_l1 * 0.005f;
-    uart2_tx_message.target_y_speed = rc_data->rc.rocker_l_ * 0.005f;
+    uart2_tx_message.target_x_speed = Get_Chassis_X_Speed(gimbal_mode); // rc_data->rc.rocker_l1 * 0.005f;
+    uart2_tx_message.target_y_speed = Get_Chassis_Y_Speed(gimbal_mode); // rc_data->rc.rocker_l_ * 0.005f;
     if (rc_data->rc.dial)
     {
         uart2_tx_message.target_omega_speed = 2.0f * PI;
@@ -148,33 +241,67 @@ float Delta_Target_Angle_Control(void)
     }
 }
 
+/*根据云台状态机进行相应的操作*/
 void Gimbal_State_Machine(void)
 {
     static uint16_t init_count = 0;
-
     // angle_pitch_motor = gimbal_motor_pitch->measure.rad - 5.22f;
     // angle_pitch = -INS.Pitch;
     angle_pitch = gimbal_motor_pitch->measure.rad;
     angle_yaw = INS.Yaw;
+    // uint32_t current_tick = osKernelGetTickCount();
     if (init_count < 1000)
     {
         init_count++;
         gimbal_mode = GIMBAL_MODE_STOP;
     }
+
+    if (gimbal_mode == GIMBAL_MODE_AUTO && gimbal_mode_last != GIMBAL_MODE_AUTO)
+    {
+        // 只有在切换的这一秒，让目标等于当前，实现平滑启动
+        target_angle_yaw = angle_yaw;
+        target_angle_pitch = angle_pitch;
+    }
+    
     switch (gimbal_mode)
     {
-    case GIMBAL_MODE_AUTO: // 目标参数待修改为nuc自瞄目标角度
-        if (!vs_aim_packet_from_nuc.input_data.shoot_pitch &&!vs_aim_packet_from_nuc.input_data.shoot_yaw)
-        {
-            target_angle_pitch = vs_aim_packet_from_nuc.input_data.shoot_pitch;
-            target_angle_yaw = vs_aim_packet_from_nuc.input_data.shoot_yaw;
-            // DJI_Motor_Stop(gimbal_motor_pitch);
-            DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch);
-            DJI_Motor_Enable(gimbal_motor_pitch);
-            DJI_Motor_Control();
-            gimbal_mode_last = GIMBAL_MODE_AUTO;
-            break;
-        }
+    case GIMBAL_MODE_AUTO:
+        // /* 仅在确实收到新视觉数据时更新目标，避免在数据间隙期间反复调整 */
+        // if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
+        // {
+        //     // 更新 Pitch 轴目标：当前角度 + 视觉给出的 Pitch 偏差
+        //     float new_target_pitch = angle_pitch + vs_aim_packet_from_nuc.input_data.shoot_pitch;
+
+        //     // 更新 Yaw 轴目标：当前角度 + 视觉给出的 Yaw 偏差
+        //     if (fabsf(vs_aim_packet_from_nuc.input_data.shoot_yaw) > 0.0001f)
+        //     {
+        //         target_angle_yaw = angle_yaw - vs_aim_packet_from_nuc.input_data.shoot_yaw;
+        //     }
+
+        //     // 【Pitch 轴限幅】非常重要：防止视觉误检测导致撞击机械限位
+        //     target_angle_pitch = Value_Limit(new_target_pitch,
+        //                                      angle_pitch_offset - 0.30f,
+        //                                      angle_pitch_offset + 0.50f);
+
+        //     // 清除视觉数据的偏差值，防止重复累加（取决于你解包逻辑的处理）
+        //     vs_aim_packet_from_nuc.input_data.shoot_pitch = 0.0f;
+        //     vs_aim_packet_from_nuc.input_data.shoot_yaw = 0.0f;
+        // }
+  
+        // // Pitch 轴使用平滑器：防止目标值突变导致电机产生过大的冲击电流或超调
+        // target_angle_pitch_temp = Delta_Target_Angle_Control();
+        // DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
+        // DJI_Motor_Enable(gimbal_motor_pitch);
+        // DJI_Motor_Control();
+        target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.0000025f;
+        target_angle_pitch = Value_Limit(target_angle_pitch, angle_pitch_offset - 0.30f, angle_pitch_offset + 0.50f);
+        target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.00002f;
+
+        target_angle_pitch_temp = Delta_Target_Angle_Control();
+        DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
+        DJI_Motor_Enable(gimbal_motor_pitch);
+        gimbal_mode_last = GIMBAL_MODE_AUTO;
+        break;
 
     case GIMBAL_MODE_MANUAL:
         target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.0000025f;
@@ -184,7 +311,7 @@ void Gimbal_State_Machine(void)
         target_angle_pitch_temp = Delta_Target_Angle_Control();
         DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
         DJI_Motor_Enable(gimbal_motor_pitch);
-        DJI_Motor_Control();
+
         gimbal_mode_last = GIMBAL_MODE_MANUAL;
         break;
 
@@ -204,6 +331,7 @@ void Gimbal_State_Machine(void)
         gimbal_mode_last = GIMBAL_MODE_STOP;
         break;
     }
+    DJI_Motor_Control();
 }
 
 void Remote_Deadzone_Control(void)
@@ -229,3 +357,15 @@ void Remote_Deadzone_Control(void)
         rc_data->rc.dial = 0;
     }
 }
+
+// void Auto_Deadzone_Control(void)
+// {
+//     if (fabsf(vs_aim_packet_from_nuc.input_data.shoot_pitch) <= 0.02f)
+//     {
+//         vs_aim_packet_from_nuc.input_data.shoot_pitch = 0.0f;
+//     }
+//     if (fabsf(vs_aim_packet_from_nuc.input_data.shoot_yaw) <= 0.02f)
+//     {
+//         vs_aim_packet_from_nuc.input_data.shoot_yaw = 0.0f;
+//     }
+// }

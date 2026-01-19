@@ -55,6 +55,14 @@ static void Shoot_Task( void *argument )
     for( ; ; )
     {
         Get_Shoot_Mode();
+        // if(vs_aim_packet_from_nuc.input_data.fire == 1)
+        // {
+        //     shoot_mode = SHOOT_MODE_FIRE;
+        // }
+        // else if(vs_aim_packet_from_nuc.input_data.fire == 0)
+        // {
+        //     shoot_mode = SHOOT_MODE_STOP;
+        // }   
         Shoot_State_Machine();
         Shoot_Motor_Send();
         

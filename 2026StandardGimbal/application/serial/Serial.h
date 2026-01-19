@@ -29,11 +29,11 @@ typedef struct
 
 typedef struct
 {
-  uint64_t config; // 配置参数，通常用于传递模式、开关、标志位等综合配置信息（如bit位控制不同功能）
+  uint64_t config;      // 配置参数，通常用于传递模式、开关、标志位等综合配置信息（如bit位控制不同功能）
   float target_pose[3]; // 目标三维坐标，通常为目标在世界/相机坐标系下的 x, y, z
-  float curr_yaw; // 当前云台的 yaw 角度（水平旋转角）
-  float curr_pitch; // 当前云台的 pitch 角度（俯仰角）
-  uint8_t enemy_color; // 敌方颜色（如 0=红，1=蓝），用于自瞄识别目标阵营
+  float curr_yaw;       // 当前云台的 yaw 角度（水平旋转角）
+  float curr_pitch;     // 当前云台的 pitch 角度（俯仰角）
+  uint8_t enemy_color;  // 敌方颜色（如 0=蓝，1=红），用于自瞄识别目标阵营
   uint8_t shoot_config; // 射击配置，通常用于控制射击模式、发弹策略等
 } __attribute__((packed)) OutputData_t;
 
@@ -47,16 +47,25 @@ typedef struct
 /*导航的发送结构体aim to nuc*/
 typedef struct
 {
-  uint8_t header; // 0x5A   帧头
+  uint8_t header;           // 0x5A
+  uint8_t detect_color : 1; // 0-red 1-blue
+  uint8_t task_mode : 2;    // 0-auto 1-aim 2-buff
+  bool reset_tracker : 1;
+  uint8_t is_play : 1;
+  uint8_t change_target : 1;
+  uint8_t reserve : 2;
 
-  float roll;
-  float pitch;
-  float yaw;
+  float imu_yaw;
+  float imu_pitch;
 
-  uint16_t timestamp; // 时间戳
-  uint16_t robot_hp;  // 血量
-  uint16_t game_time; // 比赛时间
-
+  float joint_yaw;
+  float joint_pitch;
+  float aim_x;
+  float aim_y;
+  float aim_z;
+  uint16_t timestamp; // (ms) board time
+  uint16_t robot_hp;
+  uint16_t game_time; // (s) game time [0, 450]
   uint16_t checksum;
 } __attribute__((packed)) nv_send_packet_t;
 
@@ -68,7 +77,9 @@ typedef struct
   uint8_t state : 2;      // 0-untracking 1-tracking-aim 2-tracking-buff
   uint8_t id : 3;         // aim: 0-outpost 6-guard 7-base
   uint8_t armors_num : 3; // 2-balance 3-outpost 4-normal
-
+  //uint8_t reserved : 1;
+  float yaw;
+  float pitch;
   float yaw_diff;
   float pitch_diff;
 
@@ -77,6 +88,8 @@ typedef struct
   float vx; // x轴速度指令
   float vy; // y轴速度指令
 
+  // float joint_yaw;
+  // float joint_pitch;
   uint16_t checksum;
 } __attribute__((packed)) nv_receive_packet_t;
 
@@ -123,35 +136,40 @@ typedef struct
 /*新视觉的发送结构体aim to nuc*/
 typedef struct
 {
-  FrameHeader_t frame_header;
-  OutputData_t output_data;
-  FrameTailer_t frame_tailer;
-  // uint8_t sof;
-  // uint8_t crc8;
-  // uint64_t config; // 配置参数，通常用于传递模式、开关、标志位等综合配置信息（如bit位控制不同功能）
-  // float target_pose0;
-  // float target_pose1;
-  // float target_pose2; // 目标三维坐标，通常为目标在世界/相机坐标系下的 x, y, z
-  // float curr_yaw; // 当前云台的 yaw 角度（水平旋转角）
-  // float curr_pitch; // 当前云台的 pitch 角度（俯仰角）
-  // uint8_t enemy_color; // 敌方颜色（如 0=红，1=蓝），用于自瞄识别目标阵营
-  // uint8_t shoot_config; // 射击配置，通常用于控制射击模式、发弹策略等
-  // uint8_t fire;      // 是否发弹
-  // uint16_t crc16;
+  /*SZ*/
+  // FrameHeader_t frame_header;
+  // OutputData_t output_data;
+  // FrameTailer_t frame_tailer;
+  
+  /*TJ*/
+  uint8_t head[2]; // = {'S', 'P'};
+  uint8_t mode; // 0: 空闲, 1: 自瞄, 2: 小符, 3: 大符
+  float q[4];   // wxyz顺序
+  float yaw;
+  float yaw_vel;
+  float pitch;
+  float pitch_vel;
+  float bullet_speed;
+  uint16_t bullet_count; // 子弹累计发送次数
+  uint16_t crc16;
+
 } __attribute__((packed)) vs_send_packet_t;
 
 /*新视觉的接收结构体aim from nuc*/
 typedef struct
 {
-  FrameHeader_t frame_header;
-  InputData_t input_data;
-  FrameTailer_t frame_tailer;
-  // uint8_t sof;
-  // uint8_t crc8;
-  // float shoot_yaw;   // 经过自瞄预测的yaw角度
-  // float shoot_pitch; // 经过自瞄预测的pitch角度
-  // uint8_t fire;      // 是否发弹
-  // uint16_t crc16;
+  // FrameHeader_t frame_header;
+  // InputData_t input_data;
+  // FrameTailer_t frame_tailer;
+  uint8_t head[2]; // = {'S', 'P'};
+  uint8_t mode;  // 0: 不控制, 1: 控制云台但不开火，2: 控制云台且开火
+  float yaw;
+  float yaw_vel;
+  float yaw_acc;
+  float pitch;
+  float pitch_vel;
+  float pitch_acc;
+  uint16_t crc16;
 } __attribute__((packed)) vs_receive_packet_t;
 
 /*单包发送结构体*/

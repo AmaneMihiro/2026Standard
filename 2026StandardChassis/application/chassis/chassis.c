@@ -504,6 +504,7 @@ void Chassis_Stop(void)
     DM_Motor_DISABLE(gimbal_motor_yaw);
 }
 
+/*底盘解算*/
 void Chassis_Resolving(float x_speed, float y_speed, float omega_speed, float gimbal_angle_yaw_offset)
 {
     // 舵向电机零点偏移
@@ -677,13 +678,18 @@ void Chassis_State_Machine(void)
     }
     switch (chassis_mode)
     {
-    case CHASSIS_MODE_STOP:
-        Chassis_Stop();
-        target_angle_yaw = gimbal_motor_yaw->receive_data.position;
-        chassis_mode_last = CHASSIS_MODE_STOP;
+    case CHASSIS_MODE_AUTO:
+        // target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
+        Chassis_Enable();
+        Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, target_angle_yaw);
+        DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
+
+        DM_Motor_Control();
+        chassis_mode_last = CHASSIS_MODE_AUTO;
         break;
+
     case CHASSIS_MODE_MANUAL:
-        target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
+        //target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, target_angle_yaw);
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
@@ -691,6 +697,13 @@ void Chassis_State_Machine(void)
         DM_Motor_Control();
         chassis_mode_last = CHASSIS_MODE_MANUAL;
         break;
+
+    case CHASSIS_MODE_STOP:
+        Chassis_Stop();
+        target_angle_yaw = gimbal_motor_yaw->receive_data.position;
+        chassis_mode_last = CHASSIS_MODE_STOP;
+        break;
+
     default:
         Chassis_Stop();
         target_angle_yaw = gimbal_motor_yaw->receive_data.position;

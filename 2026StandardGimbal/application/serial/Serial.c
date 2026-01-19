@@ -43,8 +43,8 @@ int CDC_SendFeed(uint8_t *Fed, uint16_t Len)
 /**
   * @brief  将接收到的控制数组拆分为对应的结构体(导航)
   * @param
-        receive_Array 接收到的数据数组
-        aim_packet_from_nuc 接收数据的结构体
+        receive_buf 接收到的原始数据数组
+        receive_packet 接收数据的的储存结构体
         Len 接收数组的长度
   * @retval 无
   */
@@ -62,6 +62,14 @@ void NV_UnPack_Data_ROS2(uint8_t *receive_buf, nv_receive_packet_t *receive_pack
     memset(receive_buf, 0, Len);
 }
 
+/**
+  * @brief  将接收到的控制数组拆分为对应的结构体(视觉)
+  * @param
+        receive_buf 接收到的原始数据数组
+        receive_packet 接收数据的的储存结构体
+        Len 接收数组的长度
+  * @retval 无
+  */
 void VS_UnPack_Data_ROS2(uint8_t *receive_buf, vs_receive_packet_t *receive_packet, uint16_t Len)
 {
     // /*Len为原始接收数据长度，如果要排除末尾的换行符，则需要减去最后一位数据包*/
@@ -78,6 +86,14 @@ void VS_UnPack_Data_ROS2(uint8_t *receive_buf, vs_receive_packet_t *receive_pack
     memset(receive_buf, 0, Len);
 }
 
+/**
+  * @brief  将接收到的控制数组拆分为对应的结构体(旧版)
+  * @param
+        receive_buf 接收到的原始数据数组
+        receive_packet 接收数据的的储存结构体
+        Len 接收数组的长度
+  * @retval 无
+  */
 void UnPack_Data_ROS2(uint8_t *receive_buf, receive_packet_t *receive_packet, uint16_t Len)
 {
     if (receive_buf[0] == 0xA5)
@@ -93,10 +109,9 @@ void UnPack_Data_ROS2(uint8_t *receive_buf, receive_packet_t *receive_packet, ui
 }
 
 /**
-  * @brief  将对应的结构体打包为缓冲数组（导航）
+  * @brief  将准备发送的数据结构体拆为数组并发送(导航)
   * @param
-        sendinfo  要发送的结构体
-        Len       确定发送的字节长度
+        send_packet 发送数据的的储存结构体
   * @retval 无
   */
 void NV_Pack_And_Send_Data_ROS2(nv_send_packet_t *send_packet)
@@ -112,6 +127,12 @@ void NV_Pack_And_Send_Data_ROS2(nv_send_packet_t *send_packet)
     CDC_SendFeed(tmp, len);
 }
 
+/**
+  * @brief  将准备发送的数据结构体拆为数组并发送(视觉)
+  * @param
+        send_packet 发送数据的的储存结构体
+  * @retval 无
+  */
 void VS_Pack_And_Send_Data_ROS2(vs_send_packet_t *send_packet)
 {
 
@@ -123,18 +144,24 @@ void VS_Pack_And_Send_Data_ROS2(vs_send_packet_t *send_packet)
     tmp[len - 2] = (uint8_t)(w_crc & 0x00ff);
     tmp[len - 1] = (uint8_t)((w_crc >> 8) & 0x00ff);
 
-    /*以下内容是为了配合nx视觉的TJU的代码在包尾增加一个换行符，不影响CRC校验的值*/
-    // 创建新缓冲区：原始数据 + CRC + 换行符
-    uint8_t tmp1[len + 1]; // 增加2个字节用于换行符
-    // 复制原始数据+CRC到新缓冲区
-    memcpy(tmp1, tmp, len);
-    tmp1[len] = 0x0A; // 换行符 '\n'
+    CDC_SendFeed(tmp, len);
+    // /*以下内容是为了配合nx视觉的SZU的代码在包尾增加一个换行符，不影响CRC校验的值*/
+    // // 创建新缓冲区：原始数据 + CRC + 换行符
+    // uint8_t tmp1[len + 1]; // 增加2个字节用于换行符
+    // // 复制原始数据+CRC到新缓冲区
+    // memcpy(tmp1, tmp, len);
+    // tmp1[len] = 0x0A; // 换行符 '\n'
 
-    // 发送带换行符的数据包
-    CDC_SendFeed(tmp1, len + 1);
-    //CDC_SendFeed(tmp, len);
+    // // 发送带换行符的数据包
+    // CDC_SendFeed(tmp1, len + 1);
 }
 
+/**
+  * @brief  将准备发送的数据结构体拆为数组并发送(旧版)
+  * @param
+        send_packet 发送数据的的储存结构体
+  * @retval 无
+  */
 void Pack_And_Send_Data_ROS2(send_packet_t *send_packet)
 {
     uint16_t len = sizeof(send_packet_t);
@@ -147,49 +174,48 @@ void Pack_And_Send_Data_ROS2(send_packet_t *send_packet)
     CDC_SendFeed(tmp, len);
 }
 
-/**
- * @brief CRC16 Caculation function
- * @param[in] pchMessage : Packed Array
- * @param[in] dwLength : Stream length = Data (without Checksum)
- * @param[in] wCRC : CRC16 init value(default : 0xFFFF)
- * @return : CRC16 checksum
- */
-// uint16_t Get_CRC16_Check_Sum(uint8_t* pchMessage,uint32_t dwLength, uint16_t wCRC)
-// {
-//   uint8_t ch_data;
-//   if (pchMessage == 0) return 0xFFFF;
-//   while (dwLength--) {
-//     ch_data = *pchMessage++;
-//     (wCRC) =
-//       ((uint16_t)(wCRC) >> 8) ^ CRC_Data[((uint16_t)(wCRC) ^ (uint16_t)(ch_data)) & 0x00ff];
-//   }
-//   return wCRC;
-// }
-
+/* */
 void NV_Send_Packet_Init(nv_send_packet_t *send_packet)
 {
     send_packet->header = 0x5A; // 帧头赋值
-    send_packet->pitch = INS.Pitch;
-    send_packet->yaw = INS.Yaw;
-    send_packet->roll = INS.Roll;
-    send_packet->timestamp = 0;
+    send_packet->imu_pitch = INS.Pitch;
+    send_packet->imu_yaw = INS.Yaw;
+    // send_packet->roll = INS.Roll;
+    // send_packet->timestamp = 0;
     send_packet->robot_hp = 0;
     send_packet->game_time = 0;
     send_packet->checksum = 0;
 }
 
+/* 初始化发送给上位机的视觉数据包 */
 void VS_Send_Packet_Init(vs_send_packet_t *send_packet)
 {
-    send_packet->frame_header.sof = 0xA6; // 帧头赋值
-    send_packet->frame_header.crc8 = 0;
-    send_packet->output_data.config = 0.0f;
-    send_packet->output_data.target_pose[0] = 0.0f;
-    send_packet->output_data.target_pose[1] = 0.0f;
-    send_packet->output_data.target_pose[2] = 0.0f;
-    send_packet->output_data.curr_yaw = INS.Yaw;
-    send_packet->output_data.curr_pitch = INS.Pitch;
-    send_packet->output_data.enemy_color = 0;
-    send_packet->output_data.shoot_config = 0;
+    /*TJ*/
+    send_packet->head[0] = 'S';
+    send_packet->head[1] = 'P';
+    send_packet->mode = 0;
+    send_packet->q[0] = 0.0f;
+    send_packet->q[1] = 0.0f;
+    send_packet->q[2] = 0.0f;
+    send_packet->q[3] = 0.0f;
+    send_packet->yaw = 0.0f;
+    send_packet->yaw_vel = 0.0f;
+    send_packet->pitch = 0.0f;
+    send_packet->pitch_vel = 0.0f;
+    send_packet->bullet_speed = 0;
+    send_packet->bullet_count = 0;
+
+    /*SZ*/
+    // send_packet->frame_header.sof = 0xA6; // 帧头赋值
+    // send_packet->frame_header.crc8 = 0;
+    // send_packet->output_data.config = 0.0f;
+    // send_packet->output_data.target_pose[0] = 0.0f;
+    // send_packet->output_data.target_pose[1] = 0.0f;
+    // send_packet->output_data.target_pose[2] = 0.0f;
+    // send_packet->output_data.curr_yaw = INS.Yaw;
+    // send_packet->output_data.curr_pitch = INS.Pitch;
+    // send_packet->output_data.enemy_color = 0;
+    // send_packet->output_data.shoot_config = 0;
 
     // send_packet->sof = 0xA6; // 帧头赋值
     // send_packet->crc8 = 0;
@@ -203,19 +229,28 @@ void VS_Send_Packet_Init(vs_send_packet_t *send_packet)
     // send_packet->shoot_config = 0;
 }
 
+/* 初始化接收自上位机的视觉数据包 */
 void VS_Receive_Packet_Init(vs_receive_packet_t *receive_packet)
 {
-    //receive_packet->frame_header.sof = 0xA6;
-    receive_packet->frame_header.crc8 = 0;
-    receive_packet->input_data.shoot_yaw =  INS.Yaw;
-    receive_packet->input_data.shoot_pitch = INS.Pitch;
-    receive_packet->input_data.fire = 0;
-    // receive_packet->crc8 = 0;
-    // receive_packet->shoot_yaw =  INS.Yaw;
-    // receive_packet->shoot_pitch = INS.Pitch;
-    // receive_packet->fire = 0;
+    // receive_packet->frame_header.sof = 0xA6;
+    // receive_packet->frame_header.crc8 = 0;
+    // receive_packet->input_data.shoot_yaw = 0;
+    // receive_packet->input_data.shoot_pitch = 0;
+    // receive_packet->input_data.fire = 0;
+
+    receive_packet->head[0] = 'S';
+    receive_packet->head[1] = 'P';
+    receive_packet->mode = 0;
+    receive_packet->yaw = 0.0f;
+    receive_packet->yaw_vel = 0.0f;
+    receive_packet->yaw_acc = 0.0f;
+    receive_packet->pitch = 0.0f;
+    receive_packet->pitch_vel = 0.0f;
+    receive_packet->pitch_acc = 0.0f;
+    receive_packet->crc16 = 0;
 }
 
+/* 初始化发送给上位机的总数据包 */
 void Send_Packet_Init(send_packet_t *send_packet)
 {
     send_packet->header = 0x5A;
