@@ -9,7 +9,10 @@
 typedef struct
 {
     uint8_t frame_header;
-    float chassis_omega_speed;
+    float gimbal_angle_yaw_motor2imu;
+    float abs_yaw;
+    float yaw_zero_offset;
+    float yaw_vel;
     uint8_t frame_tailer;
     uint8_t check_sum;
 } __attribute__((packed)) Tx_packed_t;

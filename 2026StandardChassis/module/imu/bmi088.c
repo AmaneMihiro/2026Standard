@@ -465,42 +465,43 @@ static uint8_t BMI088_Gyro_Init(bmi088_instance_t *bmi088)
  */
 void BMI088_Temp_Control(bmi088_instance_t *bmi088)
 {
-    static uint8_t temp_constant_time = 0;
-    static uint8_t first_temperate = 0; // 第一次达到设定温度
-    static float target_temp = 0;
-    target_temp = bmi088->ambient_temperature + 10; // 推荐比环境温度高10度
-    if (target_temp > 45.0f)
-        target_temp = 45.0f; // 限制在45度以内
+    // static uint8_t temp_constant_time = 0;
+    // static uint8_t first_temperate = 0; // 第一次达到设定温度
+    // static float target_temp = 0;
+    // target_temp = bmi088->ambient_temperature + 10; // 推荐比环境温度高10度
+    // if (target_temp > 45.0f)
+    //     target_temp = 45.0f; // 限制在45度以内
 
-    if (first_temperate)
-    {
-        PID_Position(bmi088->heat_pid, target_temp, bmi088->temperature);
-        // 限制在正数范围
-        if (bmi088->heat_pid->output < 0.0f)
-        {
-            bmi088->heat_pid->output = 0.0f;
-        }
-        if (bmi088->heat_pid->i_out < 0)
-        {
-            bmi088->heat_pid->i_out = 0;
-        }
-        PWM_Set_DutyRatio(bmi088->heat_pwm, bmi088->heat_pid->output);
-    }
-    else
-    {
-        // 在没有达到设置的温度-4，一直最大功率加热
-        PWM_Set_DutyRatio(bmi088->heat_pwm, 0.95f);
-        if (bmi088->temperature > target_temp - 4)
-        {
-            temp_constant_time++;
-            if (temp_constant_time > 200)
-            {
-                // 达到设置温度，设置积分项，加速收敛
-                first_temperate = 1;
-                bmi088->heat_pid->i_out = 0.05f;
-            }
-        }
-    }
+    // if (first_temperate)
+    // {
+    //     PID_Position(bmi088->heat_pid, target_temp, bmi088->temperature);
+    //     // 限制在正数范围
+    //     if (bmi088->heat_pid->output < 0.0f)
+    //     {
+    //         bmi088->heat_pid->output = 0.0f;
+    //     }
+    //     if (bmi088->heat_pid->i_out < 0)
+    //     {
+    //         bmi088->heat_pid->i_out = 0;
+    //     }
+    //     PWM_Set_DutyRatio(bmi088->heat_pwm, bmi088->heat_pid->output);
+    // }
+    // else
+    // {
+    //     // 在没有达到设置的温度-4，一直最大功率加热
+    //     PWM_Set_DutyRatio(bmi088->heat_pwm, 0.95f);
+    //     if (bmi088->temperature > target_temp - 4)
+    //     {
+    //         temp_constant_time++;
+    //         if (temp_constant_time > 200)
+    //         {
+    //             // 达到设置温度，设置积分项，加速收敛
+    //             first_temperate = 1;
+    //             bmi088->heat_pid->i_out = 0.05f;
+    //         }
+    //     }
+    // }
+    PWM_Set_DutyRatio(bmi088->heat_pwm, 0.0f);
 }
 
 // -------------------------以下为私有函数,private用于IT模式下的中断处理---------------------------------//

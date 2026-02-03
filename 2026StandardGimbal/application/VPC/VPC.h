@@ -13,9 +13,19 @@
 
 #include "INS.h"
 
+typedef struct
+{
+    float w;
+    float x;
+    float y;
+    float z;
+} Quaternion_t;
 
+extern Quaternion_t motor_q;
+
+extern void MotorToQuaternion(Quaternion_t *q, float motor_yaw, float motor_pitch);
 extern void VPC_Init(void);
 extern void VPC_UpdatePackets(void);
 extern void Choose_VPC_Type(void);
-//extern void VPC_SendTarget(void);
+// extern void VPC_SendTarget(void);
 #endif

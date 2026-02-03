@@ -4,6 +4,7 @@
 #include "usart.h"
 #include "gpio.h"
 #include <string.h>
+#include "gimbal.h"
 
 #define FRAME_HEADER 0xA5 // 帧头
 #define FRAME_TAILER 0x5A // 帧尾
@@ -126,7 +127,7 @@ void uart2_online_check(void)
         uart2_transmit_control();
         if (uwTick - last_uart2_uwTick > 50)
         {
-            uart2_rx_message.chassis_omega_speed = 0;
+            uart2_rx_message.gimbal_angle_yaw_motor2imu = 0;
         }
     }
 }

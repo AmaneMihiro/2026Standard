@@ -1,5 +1,5 @@
 /**
-* @file chassis.h
+ * @file chassis.h
  * @author guatai (2508588132@qq.com)
  * @brief
  * @version 0.1
@@ -21,15 +21,22 @@
 #define CHASSIS_MODE_MANUAL 1
 #define CHASSIS_MODE_STOP 0
 
-typedef struct 
+typedef struct
 {
     /* data */
-}__attribute__((packed))chassis_behaviour_t;
+} __attribute__((packed)) chassis_behaviour_t;
 
 typedef struct
 {
     /* data */
-}__attribute__((packed))chassis_cmd_t;
+} __attribute__((packed)) chassis_cmd_t;
+
+typedef struct
+{
+    float last_speed;   // 上一次的输出值
+    float accel_step; // 升速步长（加速度控制）
+    float decel_step; // 降速步长（通常降速可以设得比升速快一些，保证安全）
+} Speed_Ramp_t;
 
 extern DJI_motor_instance_t *chassis_motor_drive_1;
 extern DJI_motor_instance_t *chassis_motor_drive_2;
@@ -41,11 +48,12 @@ extern DJI_motor_instance_t *chassis_motor_direct_2;
 extern DJI_motor_instance_t *chassis_motor_direct_3;
 extern DJI_motor_instance_t *chassis_motor_direct_4;
 
-extern DM_motor_t *chassis_4310_instance;
+extern DM_motor_t *gimbal_motor_yaw;
 
 extern float target_angle_yaw;
 extern uint8_t chassis_mode;
-
+extern float target_speed;
+extern float yaw_zero_offset;
 void Chassis_Init(void);
 void Chassis_Enable(void);
 void Chassis_Stop(void);

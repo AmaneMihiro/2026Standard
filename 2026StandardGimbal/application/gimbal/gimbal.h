@@ -18,7 +18,7 @@
 #include "remote_control.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
-
+#include "lpf.h"
 
 #define GIMBAL_MODE_AUTO 2
 #define GIMBAL_MODE_MANUAL 1
@@ -40,13 +40,18 @@ typedef struct
 
 extern DJI_motor_instance_t *gimbal_motor_pitch;
 extern DM_motor_t *gimbal_motor_yaw;
+extern lowpass_filter1p_info_t pitch_lpf_filter;
+extern lowpass_filter1p_info_t yaw_lpf_filter;
+
 extern uint8_t gimbal_mode;
 extern uint8_t gimbal_mode_last;
 extern float target_angle_pitch;
 extern float target_angle_yaw;
 extern float target_angle_pitch_auto;
 extern float target_angle_yaw_auto;
-
+extern float angle_pitch_offset;
+extern float angle_pitch_motor2imu;
+extern float angle_yaw_motor2imu;
 extern SemaphoreHandle_t g_xSemVPC;
 
 void Gimbal_Init(void);

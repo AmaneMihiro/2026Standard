@@ -293,25 +293,25 @@ static int8_t CDC_Receive_HS(uint8_t *Buf, uint32_t *Len)
   /* USER CODE BEGIN 11 */
   /* Defensive checks */
   uint32_t copy_len = (*Len < CDC_RX_CACHE_SIZE) ? *Len : CDC_RX_CACHE_SIZE;
-    memcpy(cdc_rx_cache, Buf, copy_len);
-    cdc_rx_len = copy_len;
-    // 2. 解析数据包（内部寻找帧头 A5/A6）
-    Choose_VPC_Type();
+  memcpy(cdc_rx_cache, Buf, copy_len);
+  cdc_rx_len = copy_len;
+  // 2. 解析数据包（内部寻找帧头 A5/A6）
+  Choose_VPC_Type();
 
-    // 3. 释放信号量通知云台任务，使用中断安全版本
-    // if (g_xSemVPC != NULL) 
-    // {
-    //     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    //     xSemaphoreGiveFromISR(g_xSemVPC, &xHigherPriorityTaskWoken);
-    //     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    // }
-    
-    // 如果没有这两行，USB 驱动会认为缓冲区一直被占用，从而停止接收新数据
-    USBD_CDC_SetRxBuffer(&hUsbDeviceHS, Buf);
-    USBD_CDC_ReceivePacket(&hUsbDeviceHS);
+  // 3. 释放信号量通知云台任务，使用中断安全版本
+  // if (g_xSemVPC != NULL)
+  // {
+  //     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  //     xSemaphoreGiveFromISR(g_xSemVPC, &xHigherPriorityTaskWoken);
+  //     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  // }
 
-    cnt1++;
-    return (USBD_OK);
+  // 如果没有这两行，USB 驱动会认为缓冲区一直被占用，从而停止接收新数据
+  USBD_CDC_SetRxBuffer(&hUsbDeviceHS, Buf);
+  USBD_CDC_ReceivePacket(&hUsbDeviceHS);
+
+  cnt1++;
+  return (USBD_OK);
   /* USER CODE END 11 */
 }
 

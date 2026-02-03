@@ -21,6 +21,7 @@
 #include "chassis.h"
 
 #include "message_center.h"
+#include "bsp_dwt.h"
 
 #include "DJI_motor.h"
 #include "DM_motor.h"
@@ -49,8 +50,12 @@ void Chassis_Task_Init(void)
 }
 
 uint32_t chassis_task_diff;
-uint32_t TTT = 0;
-uint32_t AAA = 0;
+float TTT = 0;
+float AAA = 0;
+
+float chassis_t_ms = 0;
+float chassis_delta_t = 0;
+float chassis_freq = 0;
 static void Chassis_Task(void *argument)
 {
     HAL_UART_Receive_IT(&huart2, &uart2_current_byte, 1);
@@ -58,14 +63,18 @@ static void Chassis_Task(void *argument)
 
     for (;;)
     {
-        TTT = chassis_motor_drive_1->motor_controller.pid_ref;
-        AAA = chassis_motor_drive_1->measure.speed;
-        
+        //uint32_t Last_time = DWT->CYCCNT;
         Chassis_State_Machine();
+        AAA = gimbal_motor_yaw->receive_data.position;
+        TTT = target_angle_yaw;
         uart2_online_check();
 
         chassis_task_diff = osKernelGetTickCount() - time;
         time = osKernelGetTickCount();
         osDelayUntil(time + CHASSIS_TASK_PERIOD);
+
+        // chassis_t_ms = DWT_GetTimeline_ms();
+        // chassis_delta_t = DWT_GetDeltaT64(&Last_time);
+        // chassis_freq = 1 / chassis_delta_t;
     }
 }

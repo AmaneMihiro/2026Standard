@@ -6,6 +6,7 @@
  * v1.0.0		许金帅		2023/4/1
  * v2.0.0		冯俊玮		2024/10/29
  * v3.0.0   miracle    2025/12/6  （将传统的一个发送包拆为两个包发送，一个给视觉，一个给导航）
+ * v3.3.0   miracle    2026/1/21   (修正导航包和视觉包的crc校验问题,并增加新视觉包(TJ)的支持)
  */
 #ifndef __Serial_h__
 #define __Serial_h__
@@ -44,54 +45,103 @@ typedef struct
   uint8_t fire;      // 是否发弹
 } __attribute__((packed)) InputData_t;
 
-/*导航的发送结构体aim to nuc*/
+// /*导航的发送结构体aim to nuc*/
+// typedef struct
+// {
+//   uint8_t header;           // 0x5A
+//   uint8_t detect_color : 1; // 0-red 1-blue
+//   uint8_t task_mode : 2;    // 0-auto 1-aim 2-buff
+//   bool reset_tracker : 1;
+//   uint8_t is_play : 1;
+//   uint8_t change_target : 1;
+//   uint8_t reserve : 2;
+
+//   float imu_yaw;
+//   float imu_pitch;
+
+//   float joint_yaw;
+//   float joint_pitch;
+//   float aim_x;
+//   float aim_y;
+//   float aim_z;
+//   uint16_t timestamp; // (ms) board time
+//   uint16_t robot_hp;
+//   uint16_t game_time; // (s) game time [0, 450]
+//   uint16_t checksum;
+
+// } __attribute__((packed)) nv_send_packet_t;
+
+// /*导航的接收结构体aim from nuc*/
+// typedef struct
+// {
+//   uint8_t header; // 0xA5   帧头
+
+//   uint8_t state : 2;      // 0-untracking 1-tracking-aim 2-tracking-buff
+//   uint8_t id : 3;         // aim: 0-outpost 6-guard 7-base
+//   uint8_t armors_num : 3; // 2-balance 3-outpost 4-normal
+//   // uint8_t reserved : 1;
+//   float yaw;
+//   float pitch;
+//   float yaw_diff;
+//   float pitch_diff;
+
+//   int fire_advice;
+
+//   float vx; // x轴速度指令
+//   float vy; // y轴速度指令
+
+//   // float joint_yaw;
+//   // float joint_pitch;
+//   uint16_t checksum;
+// } __attribute__((packed)) nv_receive_packet_t;
+
+
+/*导航的发送结构体aim to nuc*/   //(导航与TJ视觉合并包)
 typedef struct
 {
-  uint8_t header;           // 0x5A
-  uint8_t detect_color : 1; // 0-red 1-blue
-  uint8_t task_mode : 2;    // 0-auto 1-aim 2-buff
-  bool reset_tracker : 1;
-  uint8_t is_play : 1;
-  uint8_t change_target : 1;
-  uint8_t reserve : 2;
+  // Part 1: 导航发送部分 (38 字节)
+    uint8_t nav_header;//0x5A;
+    float imu_yaw;
+    float imu_pitch;
+    float joint_yaw;
+    float joint_pitch;
 
-  float imu_yaw;
-  float imu_pitch;
+    // Part 2: 视觉发送部分 (43 字节)
+    uint8_t vis_head[2];//{'S', 'P'};
+    uint8_t vis_mode;  //1
+    float q[4]; // wxyz
+    float vis_yaw;
+    float vis_yaw_vel;
+    float vis_pitch;
+    float vis_pitch_vel;
+    float vis_bullet_speed;
+    uint16_t vis_bullet_count; //0
+    uint16_t checksum;
 
-  float joint_yaw;
-  float joint_pitch;
-  float aim_x;
-  float aim_y;
-  float aim_z;
-  uint16_t timestamp; // (ms) board time
-  uint16_t robot_hp;
-  uint16_t game_time; // (s) game time [0, 450]
-  uint16_t checksum;
 } __attribute__((packed)) nv_send_packet_t;
 
-/*导航的接收结构体aim from nuc*/
+/*导航的接收结构体aim from nuc*/   //(导航与TJ视觉合并包)
 typedef struct
 {
-  uint8_t header; // 0xA5   帧头
-
-  uint8_t state : 2;      // 0-untracking 1-tracking-aim 2-tracking-buff
-  uint8_t id : 3;         // aim: 0-outpost 6-guard 7-base
-  uint8_t armors_num : 3; // 2-balance 3-outpost 4-normal
-  //uint8_t reserved : 1;
-  float yaw;
-  float pitch;
-  float yaw_diff;
-  float pitch_diff;
-
-  int fire_advice;
-
-  float vx; // x轴速度指令
-  float vy; // y轴速度指令
-
-  // float joint_yaw;
-  // float joint_pitch;
-  uint16_t checksum;
+  // Part 1: 导航接收部分
+    uint8_t nav_header;//0xA5;
+    float nav_vx;
+    float nav_vy;
+    
+    // Part 2: 视觉接收部分
+    uint8_t head_vis[2];//{'S', 'P'};
+    uint8_t mode_vis;
+    float vis_yaw;
+    float vis_yaw_vel;
+    float vis_yaw_acc;
+    float vis_pitch;
+    float vis_pitch_vel;
+    float vis_pitch_acc;
+    uint16_t checksum;
 } __attribute__((packed)) nv_receive_packet_t;
+
+
+
 
 // /*传统视觉的发送结构体aim to nuc*/
 // typedef struct
@@ -140,11 +190,11 @@ typedef struct
   // FrameHeader_t frame_header;
   // OutputData_t output_data;
   // FrameTailer_t frame_tailer;
-  
+
   /*TJ*/
   uint8_t head[2]; // = {'S', 'P'};
-  uint8_t mode; // 0: 空闲, 1: 自瞄, 2: 小符, 3: 大符
-  float q[4];   // wxyz顺序
+  uint8_t mode;    // 0: 空闲, 1: 自瞄, 2: 小符, 3: 大符
+  float q[4];      // wxyz顺序
   float yaw;
   float yaw_vel;
   float pitch;
@@ -161,8 +211,9 @@ typedef struct
   // FrameHeader_t frame_header;
   // InputData_t input_data;
   // FrameTailer_t frame_tailer;
+
   uint8_t head[2]; // = {'S', 'P'};
-  uint8_t mode;  // 0: 不控制, 1: 控制云台但不开火，2: 控制云台且开火
+  uint8_t mode;    // 0: 不控制, 1: 控制云台但不开火，2: 控制云台且开火
   float yaw;
   float yaw_vel;
   float yaw_acc;
@@ -188,7 +239,7 @@ typedef struct
   float aim_x;
   float aim_y;
   float aim_z;
-
+  
   uint16_t game_time; // (s) game time [0, 450]
   uint32_t timestamp; // (ms) board time
   uint16_t checksum;

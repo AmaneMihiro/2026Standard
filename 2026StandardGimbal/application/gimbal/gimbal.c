@@ -26,8 +26,10 @@
 #include "INS.h"
 #include "Serial.h"
 #include "VPC.h"
+#include "lpf.h"
 
 float angle_pitch_offset = 5.22f;
+float yaw_zero_offset = 0.0f;
 uint8_t gimbal_mode = 0;
 uint8_t gimbal_mode_last = 0;
 float target_angle_pitch = 0;
@@ -35,17 +37,20 @@ float target_angle_yaw = 0;
 float target_angle_pitch_temp = 0;
 float angle_pitch = 0;
 float angle_pitch_motor = 0;
+float angle_pitch_motor2imu = 0;
 float angle_yaw = 0;
-float target_angle_pitch_auto = 0;
-float target_angle_yaw_auto = 0;
+float angle_yaw_motor2imu = 0;
 
-/* 记录上次视觉数据更新的时间，避免在数据间隙期间反复调整 */
+float pitch_speed_feedback;
 static uint32_t last_vision_update_tick = 0;
 
+lowpass_filter1p_info_t pitch_lpf_filter;
+lowpass_filter1p_info_t yaw_lpf_filter;
+
 PID_t gimbal_6020_angle_pid = {
-    .kp = 750.0f, // 750.0f,
+    .kp = 750.0f,
     .ki = 0.0f,
-    .kd = 1000.0f, /* 从 1000 降至 250，减少导数项放大噪声导致的振荡 */
+    .kd = 1000.0f,
     .output_limit = 50.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
@@ -68,7 +73,7 @@ motor_init_config_t gimbal_6020_init = {
         .torque_PID = NULL,
 
         .other_angle_feedback_ptr = NULL,
-        .other_speed_feedback_ptr = NULL,
+        .other_speed_feedback_ptr = &pitch_speed_feedback, // NULL,
 
         .angle_feedforward_ptr = NULL,
         .speed_feedforward_ptr = NULL,
@@ -85,7 +90,7 @@ motor_init_config_t gimbal_6020_init = {
         .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
 
         .angle_feedback_source = MOTOR_FEED,
-        .speed_feedback_source = MOTOR_FEED,
+        .speed_feedback_source = OTHER_FEED,
 
         .feedforward_flag = FEEDFORWARD_NONE,
     },
@@ -166,7 +171,7 @@ float Get_Chassis_X_Speed(uint8_t mode)
     switch (mode)
     {
     case GIMBAL_MODE_AUTO:
-        chassis_x_speed = nv_aim_packet_from_nuc.vx;
+        chassis_x_speed = nv_aim_packet_from_nuc.nav_vx;
         break;
 
     case GIMBAL_MODE_MANUAL:
@@ -194,7 +199,7 @@ float Get_Chassis_Y_Speed(uint8_t mode)
     switch (mode)
     {
     case GIMBAL_MODE_AUTO:
-        chassis_y_speed = nv_aim_packet_from_nuc.vy;
+        chassis_y_speed = nv_aim_packet_from_nuc.nav_vy;
         break;
 
     case GIMBAL_MODE_MANUAL:
@@ -211,10 +216,25 @@ float Get_Chassis_Y_Speed(uint8_t mode)
     return chassis_y_speed;
 }
 
+float Get_Target_Angle_Yaw(uint8_t mode)
+{
+    switch (mode)
+    {
+    case GIMBAL_MODE_AUTO:
+        return target_angle_yaw;
+    case GIMBAL_MODE_MANUAL:
+        return -(target_angle_yaw - angle_yaw);
+    case GIMBAL_MODE_STOP:
+        return -(target_angle_yaw - angle_yaw);
+    default:
+        return -(target_angle_yaw - angle_yaw);
+    }
+}
+
 void Chassis_Control(void)
 {
     uart2_tx_message.chassis_mode = Get_Chassis_Mode(gimbal_mode); //(gimbal_mode == GIMBAL_MODE_MANUAL);
-    uart2_tx_message.delta_target_angle_yaw = -(target_angle_yaw - angle_yaw);
+    uart2_tx_message.delta_target_angle_yaw = Get_Target_Angle_Yaw(gimbal_mode);
     uart2_tx_message.target_x_speed = Get_Chassis_X_Speed(gimbal_mode); // rc_data->rc.rocker_l1 * 0.005f;
     uart2_tx_message.target_y_speed = Get_Chassis_Y_Speed(gimbal_mode); // rc_data->rc.rocker_l_ * 0.005f;
     if (rc_data->rc.dial)
@@ -227,13 +247,13 @@ void Chassis_Control(void)
     }
 }
 
-float Delta_Target_Angle_Control(void)
+float Delta_Target_Angle_Control(float pitch_step)
 {
-    if (fabs(target_angle_pitch - target_angle_pitch_temp) >= 0.0015f)
+    if (fabs(target_angle_pitch - target_angle_pitch_temp) >= pitch_step)
     {
         return (target_angle_pitch - target_angle_pitch_temp) >= 0
-                   ? (target_angle_pitch_temp + 0.0015f)
-                   : (target_angle_pitch_temp - 0.0015f);
+                   ? (target_angle_pitch_temp + pitch_step)
+                   : (target_angle_pitch_temp - pitch_step);
     }
     else
     {
@@ -245,10 +265,14 @@ float Delta_Target_Angle_Control(void)
 void Gimbal_State_Machine(void)
 {
     static uint16_t init_count = 0;
-    // angle_pitch_motor = gimbal_motor_pitch->measure.rad - 5.22f;
-    // angle_pitch = -INS.Pitch;
+    angle_pitch_motor2imu = -gimbal_motor_pitch->measure.rad + angle_pitch_offset;
     angle_pitch = gimbal_motor_pitch->measure.rad;
-    angle_yaw = INS.Yaw;
+
+    angle_yaw_motor2imu = uart2_rx_message.gimbal_angle_yaw_motor2imu;
+    angle_yaw = uart2_rx_message.abs_yaw;
+    yaw_zero_offset = uart2_rx_message.yaw_zero_offset;
+    MotorToQuaternion(&motor_q, angle_yaw_motor2imu, angle_pitch_motor2imu);
+    pitch_speed_feedback = -INS.Gyro[IMU_X];
     // uint32_t current_tick = osKernelGetTickCount();
     if (init_count < 1000)
     {
@@ -262,53 +286,103 @@ void Gimbal_State_Machine(void)
         target_angle_yaw = angle_yaw;
         target_angle_pitch = angle_pitch;
     }
-    
+
     switch (gimbal_mode)
     {
     case GIMBAL_MODE_AUTO:
-        // /* 仅在确实收到新视觉数据时更新目标，避免在数据间隙期间反复调整 */
-        // if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
-        // {
-        //     // 更新 Pitch 轴目标：当前角度 + 视觉给出的 Pitch 偏差
-        //     float new_target_pitch = angle_pitch + vs_aim_packet_from_nuc.input_data.shoot_pitch;
+    {
+        static uint32_t vision_timeout_cnt = 0; // 视觉丢失计时器
+        uint8_t is_vision_tracking = 0;         // 本帧视觉是否追踪标志位
+        // target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.0000025f;
+        if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
+        {
+            //pitch轴滤波
+            float next_target_pitch = angle_pitch_offset - vs_aim_packet_from_nuc.pitch; // 未滤波的目标机械位置
+            float abs_pitch_diff = fabs(next_target_pitch - angle_pitch);
+            if (abs_pitch_diff > 0.15f)
+                pitch_lpf_filter.Alpha = 0.3f;
+            else if (abs_pitch_diff < 0.05f)
+                pitch_lpf_filter.Alpha = 0.95f;
+            else
+                pitch_lpf_filter.Alpha = 0.7f;
+            float filtered_pitch = LowPass_Filter1p_Update(&pitch_lpf_filter, vs_aim_packet_from_nuc.pitch);
+            // 死区处理
+            float next_target_pitch_filter = angle_pitch_offset - filtered_pitch; // 滤波后的目标机械位置
+            if (fabs(next_target_pitch_filter - angle_pitch) > 0.01f)             // 大于0.01rad才更新目标值
+            {
+                target_angle_pitch = next_target_pitch_filter;
+            }
 
-        //     // 更新 Yaw 轴目标：当前角度 + 视觉给出的 Yaw 偏差
-        //     if (fabsf(vs_aim_packet_from_nuc.input_data.shoot_yaw) > 0.0001f)
-        //     {
-        //         target_angle_yaw = angle_yaw - vs_aim_packet_from_nuc.input_data.shoot_yaw;
-        //     }
+            // // yaw轴滤波
+            // float next_target_yaw = yaw_zero_offset + vs_aim_packet_from_nuc.yaw; // 未滤波的目标机械位置
+            // float abs_yaw_diff = fabs(next_target_yaw - angle_yaw);
+            // if (abs_yaw_diff > 0.15f)
+            //     yaw_lpf_filter.Alpha = 0.7f;
+            // else if (abs_yaw_diff < 0.05f)
+            //     yaw_lpf_filter.Alpha = 0.95f;
+            // else
+            //     yaw_lpf_filter.Alpha = 0.8f;
+            // float filtered_yaw = LowPass_Filter1p_Update(&yaw_lpf_filter, vs_aim_packet_from_nuc.yaw);
+            // // 死区处理
+            // float next_target_yaw_filter = yaw_zero_offset + filtered_yaw; // 滤波后的目标机械位置
+            // if (fabs(next_target_yaw_filter - angle_yaw) > 0.01f)             // 大于0.01rad才更新目标值
+            // {
+            //     target_angle_yaw = next_target_yaw_filter;
+            // }
 
-        //     // 【Pitch 轴限幅】非常重要：防止视觉误检测导致撞击机械限位
-        //     target_angle_pitch = Value_Limit(new_target_pitch,
-        //                                      angle_pitch_offset - 0.30f,
-        //                                      angle_pitch_offset + 0.50f);
+            if (vs_aim_packet_from_nuc.yaw != 0)
+            {
+                target_angle_yaw = uart2_rx_message.yaw_zero_offset + vs_aim_packet_from_nuc.yaw;
+            }
 
-        //     // 清除视觉数据的偏差值，防止重复累加（取决于你解包逻辑的处理）
-        //     vs_aim_packet_from_nuc.input_data.shoot_pitch = 0.0f;
-        //     vs_aim_packet_from_nuc.input_data.shoot_yaw = 0.0f;
-        // }
-  
-        // // Pitch 轴使用平滑器：防止目标值突变导致电机产生过大的冲击电流或超调
-        // target_angle_pitch_temp = Delta_Target_Angle_Control();
-        // DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
-        // DJI_Motor_Enable(gimbal_motor_pitch);
-        // DJI_Motor_Control();
-        target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.0000025f;
-        target_angle_pitch = Value_Limit(target_angle_pitch, angle_pitch_offset - 0.30f, angle_pitch_offset + 0.50f);
-        target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.00002f;
+            vision_timeout_cnt = 0;
+            is_vision_tracking = 1;
+        }
 
-        target_angle_pitch_temp = Delta_Target_Angle_Control();
+        // 视觉丢失处理逻辑
+        if (!is_vision_tracking)
+        {
+            vision_timeout_cnt++;
+
+            // 如果超过100ms没收到视觉更新，认为视觉丢失，接入遥控器控制
+            if (vision_timeout_cnt > 100 || vs_aim_packet_from_nuc.yaw == 0)
+            {
+                // 遥控器摇杆在当前目标值的基础上进行增量式修改
+                target_angle_pitch += rc_data->rc.rocker_r1 * 0.0000008f;
+                target_angle_yaw -= rc_data->rc.rocker_r_ * 0.000005f;
+            }
+        }
+
+        // 安全限幅，控制转动角度始终不超过机械限制
+        target_angle_pitch = Value_Limit(target_angle_pitch,
+                                         angle_pitch_offset - 0.40f,
+                                         angle_pitch_offset + 0.55f);
+
+        // 步进平滑器
+        target_angle_pitch_temp = Delta_Target_Angle_Control(0.0003f);
+
         DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
         DJI_Motor_Enable(gimbal_motor_pitch);
+
         gimbal_mode_last = GIMBAL_MODE_AUTO;
         break;
 
+        // target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.0000025f;
+        // target_angle_pitch = Value_Limit(target_angle_pitch, angle_pitch_offset - 0.30f, angle_pitch_offset + 0.50f);
+        // target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.00002f;
+        // target_angle_pitch_temp = Delta_Target_Angle_Control();
+        // DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
+        // DJI_Motor_Enable(gimbal_motor_pitch);
+
+        // gimbal_mode_last = GIMBAL_MODE_AUTO;
+        // break;
+    }
     case GIMBAL_MODE_MANUAL:
         target_angle_pitch = target_angle_pitch + rc_data->rc.rocker_r1 * 0.0000025f;
         target_angle_pitch = Value_Limit(target_angle_pitch, angle_pitch_offset - 0.30f, angle_pitch_offset + 0.50f);
         target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.00002f;
 
-        target_angle_pitch_temp = Delta_Target_Angle_Control();
+        target_angle_pitch_temp = Delta_Target_Angle_Control(0.0015f); // 0.0005f
         DJI_Motor_Set_Ref(gimbal_motor_pitch, target_angle_pitch_temp);
         DJI_Motor_Enable(gimbal_motor_pitch);
 

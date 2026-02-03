@@ -190,7 +190,7 @@ static void Decode_DJI_Motor(CAN_instance_t *_instance)
     }
     measure->total_angle = measure->total_round * 360 + measure->angle_single_round;
     measure->total_rad = (measure->total_ecd / 8192.0f) * 2 * PI;
-    measure->speed = (measure->speed_aps / 180.0f * PI);
+    measure->speed = (measure->speed_aps / 180.0f * PI); // 转换为了rad/s
     measure->angle = measure->ecd / 8192.0f * 360.0f; // 角度0~360°
     measure->rad = measure->ecd / 8192.0f * 2 * PI;
 

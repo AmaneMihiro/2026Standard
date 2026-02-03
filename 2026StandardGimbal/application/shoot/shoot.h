@@ -31,7 +31,7 @@ typedef struct
 
 extern uint8_t shoot_mode;
 extern uint8_t shoot_mode_last;
-
+extern float BULLET_V;
 void Shoot_Init(void);
 void Shoot_Enable(void);
 void Shoot_Stop(void);

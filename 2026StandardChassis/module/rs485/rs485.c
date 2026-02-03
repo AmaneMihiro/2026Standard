@@ -5,7 +5,7 @@
 #include "gpio.h"
 #include <string.h>
 #include "chassis.h"
-
+#include "chassis_task.h"
 #define FRAME_HEADER 0xA5 // 帧头
 #define FRAME_TAILER 0x5A // 帧尾
 
@@ -109,8 +109,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 接收回调函数
 
         if (uart2_extract_frame(&uart2_rx_message))
         {
-            target_angle_yaw = target_angle_yaw + uart2_rx_message.delta_target_angle_yaw;
-
+            if (uart2_rx_message.chassis_mode == CHASSIS_MODE_AUTO) //发的为目标的绝对角度
+            {
+                target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
+            }
+            else //普通控制的增量式
+            {
+                target_angle_yaw = target_angle_yaw + uart2_rx_message.delta_target_angle_yaw;
+            }
             last_uart2_uwTick = uwTick;
             uart2_status = ready_to_transmit;
             uart2_transmit_control();

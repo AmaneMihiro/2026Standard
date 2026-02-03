@@ -32,6 +32,8 @@
 #include "shoot.h"
 #include "shoot_motor.h"
 
+#include "lpf.h"
+#include "bsp_dwt.h"
 #define GIMBAL_TASK_PERIOD 1 // ms
 
 osThreadId_t gimbal_task_handel;
@@ -43,7 +45,10 @@ static void Gimbal_Task(void *argument);
 
 void Gimbal_Task_Init(void)
 {
-    if (g_xSemVPC == NULL) {
+    LowPass_Filter1p_Init(&pitch_lpf_filter, 0.8f);
+    LowPass_Filter1p_Init(&yaw_lpf_filter, 0.8f);
+    if (g_xSemVPC == NULL)
+    {
         g_xSemVPC = xSemaphoreCreateBinary();
     }
     const osThreadAttr_t attr = {
@@ -59,33 +64,40 @@ void Gimbal_Task_Init(void)
 
 uint32_t gimbal_task_diff;
 
+// float TTT = 0;
+// float AAA = 0;
+// float gimbal_t_ms = 0;
+// float gimbal_delta_t = 0;
+// float gimbal_freq = 0;
+
 static void Gimbal_Task(void *argument)
 {
-     static uint8_t shoot_cnt = 0;
+
+    static uint8_t shoot_cnt = 0;
     HAL_UART_Receive_IT(&huart2, &uart2_current_byte, 1);
     uint32_t time = osKernelGetTickCount();
 
     for (;;)
     {
-        //Choose_VPC_Type();
+        //uint32_t Last_time = DWT->CYCCNT;
         Remote_Deadzone_Control();
         Get_Gimbal_Mode();
         Gimbal_State_Machine();
+        // TTT = target_angle_pitch;
+        // AAA = gimbal_motor_pitch->measure.rad;
         Chassis_Control();
         uart2_online_check();
 
         VPC_UpdatePackets();
         //NV_Pack_And_Send_Data_ROS2(&nv_aim_packet_to_nuc); // 导航数据包发送
-        VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); // 视觉数据包发送
-        // Pack_And_Send_Data_ROS2(&aim_packet_to_nuc);
-        // if (shoot_cnt % 5 == 0)
-        // {
-        //     shoot_cnt = 0;
-        //     Shoot_Motor_Send();
-        // }
-        // shoot_cnt++;
+        VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); // 新视觉数据包发送
+        // Pack_And_Send_Data_ROS2(&aim_packet_to_nuc);    //旧视觉数据包发送
         gimbal_task_diff = osKernelGetTickCount() - time;
         time = osKernelGetTickCount();
         osDelayUntil(time + GIMBAL_TASK_PERIOD);
+
+        // gimbal_t_ms = DWT_GetTimeline_ms();
+        // gimbal_delta_t = DWT_GetDeltaT64(&Last_time);
+        // gimbal_freq = 1 / gimbal_delta_t;
     }
 }

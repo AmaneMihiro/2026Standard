@@ -1,10 +1,13 @@
 /*仿照guatai版本的大疆电机库改的摩擦轮电机库,整个库都是围绕摩擦轮电机依靠G4电调只需要，使用can2通道写的，
 只需要将目标转速发给电调，缺少泛用性，如果需要使用其他can线，需要再进行修改*/
-//   miracle    2025/11/27
+//   miracle-cloud    2025/11/27
+
 
 //algorithmn
 
+
 //application
+
 
 //bsp
 #include "bsp_can.h"
@@ -57,6 +60,7 @@ uint8_t shoot_sender_enable_flag[2] = {0}; //对应数组是否使用的标志
 //         motor->sender_group = motor_grouping;
 // }
 
+/*特异化符合G4电调控制，泛用性低，仅用在当前发射机构上，其他情况下参考DJI_Motor*/
 static void Shoot_Motor_Sender_Grouping(shoot_motor_instance_t *motor, can_init_config_t *config)
 {
     uint8_t motor_id = config->tx_id - 1; // 下标从零开始,先减一方便赋值

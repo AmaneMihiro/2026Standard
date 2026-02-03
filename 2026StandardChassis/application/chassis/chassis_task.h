@@ -17,5 +17,5 @@
 #include "pid.h"
 
 extern void Chassis_Task_Init(void);
-
+extern float TTT;
 #endif /* __CHASSIS_TASK_H__ */

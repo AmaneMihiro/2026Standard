@@ -5,6 +5,7 @@
  * 版本			作者			编写日期
  * v1.1.0		许金帅		2023/4/11
  * v3.0.0   miracle  2025/12/9
+ * v3.3.0   miracle  2026/1/21   (修正导航包和视觉包的crc校验问题,并增加新视觉包(TJ)的支持)
  */
 #include "Serial.h"
 #include "stm32h7xx_hal.h"
@@ -23,9 +24,9 @@ vs_send_packet_t vs_aim_packet_to_nuc;
 receive_packet_t aim_packet_from_nuc;
 send_packet_t aim_packet_to_nuc;
 
-uint8_t nv_buf_receive_from_nuc[sizeof(nv_receive_packet_t)];
-uint8_t vs_buf_receive_from_nuc[sizeof(vs_receive_packet_t)];
-uint8_t buf_receive_from_nuc[sizeof(receive_packet_t)];
+// uint8_t nv_buf_receive_from_nuc[sizeof(nv_receive_packet_t)];
+// uint8_t vs_buf_receive_from_nuc[sizeof(vs_receive_packet_t)];
+// uint8_t buf_receive_from_nuc[sizeof(receive_packet_t)];
 
 /**
 * @brief  将数据包发送到上位机
@@ -74,7 +75,7 @@ void VS_UnPack_Data_ROS2(uint8_t *receive_buf, vs_receive_packet_t *receive_pack
 {
     // /*Len为原始接收数据长度，如果要排除末尾的换行符，则需要减去最后一位数据包*/
     // uint16_t actual_Len = Len - 1;
-    if (receive_buf[0] == 0xA6)
+    if (receive_buf[0] == 'S' && receive_buf[1] == 'P')
     {
         uint16_t w_expected;
         w_expected = Get_CRC16_Check_Sum(receive_buf, Len - 2, 0xFFFF);
@@ -83,7 +84,7 @@ void VS_UnPack_Data_ROS2(uint8_t *receive_buf, vs_receive_packet_t *receive_pack
             memcpy(receive_packet, receive_buf, Len);
         }
     }
-    memset(receive_buf, 0, Len);
+    //memset(receive_buf, 0, Len);
 }
 
 /**
@@ -177,14 +178,14 @@ void Pack_And_Send_Data_ROS2(send_packet_t *send_packet)
 /* */
 void NV_Send_Packet_Init(nv_send_packet_t *send_packet)
 {
-    send_packet->header = 0x5A; // 帧头赋值
+    send_packet->nav_header = 0x5A; // 帧头赋值
     send_packet->imu_pitch = INS.Pitch;
     send_packet->imu_yaw = INS.Yaw;
     // send_packet->roll = INS.Roll;
     // send_packet->timestamp = 0;
-    send_packet->robot_hp = 0;
-    send_packet->game_time = 0;
-    send_packet->checksum = 0;
+//    send_packet->robot_hp = 0;
+//    send_packet->game_time = 0;
+     //send_packet->checksum = 0;
 }
 
 /* 初始化发送给上位机的视觉数据包 */
@@ -205,7 +206,7 @@ void VS_Send_Packet_Init(vs_send_packet_t *send_packet)
     send_packet->bullet_speed = 0;
     send_packet->bullet_count = 0;
 
-    /*SZ*/
+    /*tianjing*/
     // send_packet->frame_header.sof = 0xA6; // 帧头赋值
     // send_packet->frame_header.crc8 = 0;
     // send_packet->output_data.config = 0.0f;

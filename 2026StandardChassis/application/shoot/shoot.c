@@ -2,10 +2,9 @@
 ******************************************************************************
 * @file    shoot.c
 * @brief
-* @author
+* @author  
 ******************************************************************************
-* Copyright (c) 2023 Team
-* All rights reserved.
+* 
 ******************************************************************************
 */
 
@@ -15,12 +14,18 @@
 #include "shoot.h"
 #include "chassis.h"
 
-uint16_t target_shoot_frequence = 0;
+/* 拨弹盘物理参数定义 */
+#define SHOOT_WHEEL_BULLET_COUNT  8.0f    // 拨弹盘一圈的弹丸数
+#define M2006_REDUCTION_RATIO     36.0f   // M2006电机减速比
+
+uint16_t target_shoot_rpm = 0;
+float shoot_hz = 10.0f; //射击频率（发/秒）
+
 
 PID_t chassis_2006_speed_pid = {
     .kp = 30.0f,
     .ki = 3.0f,
-    .kd = 0.0f,
+    .kd = 0.0f, 
     .output_limit = 9000.0f,
     .integral_limit = 9000.0f,
     .dead_band = 0.0f,
@@ -84,7 +89,49 @@ void Shoot_Stop(void)
     DJI_Motor_Stop(chassis_shoot_motor);
 }
 
+/**
+ * @brief 将目标射击频率(Hz)转换为电机转子的目标角速度(rad/s)
+ * @param hz 目标射频（每秒发数）
+ * @return float 电机转子的目标角速度 (单位: rad/s)，用于传给 DJI_Motor_Set_Ref
+ */
+static inline float BulletFreq_to_RadS(float hz)  //inline 直接调用内容，提升效率
+{
+    // 推导过程：
+    // 1. 拨弹轴每秒转数 (rps) = 目标频率 / 一圈弹丸数
+    // 2. 电机转子每秒转数 (rps) = 拨弹轴rps * 减速比
+    // 3. 电机转子角速度 (rad/s) = 电机转子rps * 2 * PI
+    
+    float target_motor_rad_s = (hz / SHOOT_WHEEL_BULLET_COUNT) * M2006_REDUCTION_RATIO * (2.0f * PI);
+    
+    return target_motor_rad_s;
+}
 
+// void Update_Bullet_Count(DJI_motor_instance_t *motor)
+// {
+//   const float ANGLE_PER_BULLET = 1620.0f; // 电机转子需转过的角度
+   
+//    // 计算自上次计数以来，电机转子又转了多少度
+//    float delta_angle = motor->measure.total_angle - motor->last_shot_angle;
+
+//    // 如果增量超过了 1620 度（一颗子弹的位移）
+//    if (delta_angle >= ANGLE_PER_BULLET)
+//    {
+//        // 计算本次增加了几颗子弹（防止单次调用跨度过大）
+//        uint32_t new_bullets = (uint32_t)(delta_angle / ANGLE_PER_BULLET);
+       
+//        motor->total_bullets += new_bullets;
+       
+//        // 更新记录点：按子弹步长增加，保留不足一发的余数角度
+//        motor->last_shot_angle += new_bullets * ANGLE_PER_BULLET;
+//    }
+//    // 如果发生反转（如手动回拨），delta_angle 可能为负，根据需求决定是否扣除子弹
+//    else if (delta_angle <= -ANGLE_PER_BULLET)
+//    {
+//        uint32_t lost_bullet = (uint32_t)(-delta_angle / ANGLE_PER_BULLET);
+//        motor->total_bullets = (motor->total_bullets > lost_bullet) ? (motor->total_bullets - lost_bullet) : 0;
+//        motor->last_shot_angle -= lost_bullet * ANGLE_PER_BULLET;
+//    }
+// }
 
 void Shoot_State_Machine(void)
 {
@@ -103,9 +150,9 @@ void Shoot_State_Machine(void)
             Shoot_Stop();
             break;
         case SHOOT_MODE_FIRE:
-             target_shoot_frequence = 250;
+             target_shoot_rpm = BulletFreq_to_RadS(shoot_hz);
              Shoot_Enable();
-             DJI_Motor_Set_Ref(chassis_shoot_motor, target_shoot_frequence);
+             DJI_Motor_Set_Ref(chassis_shoot_motor, target_shoot_rpm);
             break;
         default:
             Shoot_Stop();
@@ -116,5 +163,5 @@ void Shoot_State_Machine(void)
     {
         Shoot_Stop();
     }
-    //DJI_Motor_Control();
+    //DJI_Motor_Control();   //底盘会调用，这里不需要再调用一次
 }

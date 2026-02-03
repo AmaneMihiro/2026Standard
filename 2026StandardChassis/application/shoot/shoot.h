@@ -31,7 +31,7 @@ typedef struct
 
 extern uint8_t shoot_mode;
 extern uint8_t shoot_mode_last;
-extern uint16_t target_shoot_frequence;
+extern uint16_t target_shoot_rpm;
 extern DJI_motor_instance_t *chassis_shoot_motor;
 void Shoot_Init(void);
 void Shoot_Enable(void);

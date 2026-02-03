@@ -19,6 +19,7 @@
 #include <math.h>
 
 #include "chassis.h"
+#include "chassis_task.h"
 
 #include "DM_motor.h"
 #include "DJI_motor.h"
@@ -35,15 +36,38 @@
 #define WHEEL_RADIUS 0.055f          // 轮子半径 (m)
 #define WHEEL_REDUCTION_RATIO 14.88f // 轮子减速比
 
+// 速度步长
+#define ACC_SPEED_STEP 0.01f // 加速步长
+#define DEC_SPEED_STEP 0.01f // 减速步长
+
 float target_angle_yaw = 0;
+float target_angle_yaw_temp = 0;
 uint8_t chassis_mode = 0;
 float chassis_mode_last = 0;
 uint16_t init_count = 0;
 float chassis_actual_omega = 0;
+float gimbal_angle_yaw_motor2imu = 0.0f;
+float gimbal_angle_yaw_motor = 0.0f;
+float gimbal_angle_yaw_motor_last = 0.0f;
 
+float yaw_torque_val = 0.0f;
+uint8_t yaw_flag = 0;
+float yaw_zero_offset = 0.0f;
+// int brake_timer = 0;
+Speed_Ramp_t chassis_x_speed_ramp = {
+    .last_speed = 0.0f,
+    .accel_step = ACC_SPEED_STEP,
+    .decel_step = DEC_SPEED_STEP,
+};
+
+Speed_Ramp_t chassis_y_speed_ramp = {
+    .last_speed = 0.0f,
+    .accel_step = ACC_SPEED_STEP,
+    .decel_step = DEC_SPEED_STEP,
+};
 PID_t chassis_3508_speed_pid = {
-    .kp = 10.0f,
-    .ki = 0.01f,
+    .kp = 12.0f,  // 10.0f
+    .ki = 0.001f, // 0.01f
     .kd = 0.0f,
     .output_limit = 10000.0f,
     .integral_limit = 10000.0f,
@@ -69,17 +93,17 @@ PID_t chassis_6020_speed_pid = {
 };
 
 PID_t gimbal_4310_angle_pid = {
-    .kp = 25.0f,
+    .kp = 21.5f,     //23.0
     .ki = 0.0f,
-    .kd = 600.0f,
+    .kd = 585.0f,    //600
     .output_limit = 5.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
 };
 
 PID_t gimbal_4310_speed_pid = {
-    .kp = 1.0f,
-    .ki = 0.0005f,
+    .kp = 1.0f, // 1.0f
+    .ki = 0.0007f,
     .kd = 0.0f,
     .output_limit = 10.0f,
     .integral_limit = 10.0f,
@@ -419,8 +443,7 @@ motor_init_config_t gimbal_4310_init = {
         .angle_feedforward_ptr = NULL,
         .speed_feedforward_ptr = NULL,
         .current_feedforward_ptr = NULL,
-        .torque_feedforward_ptr = NULL,
-
+        .torque_feedforward_ptr = NULL, //&yaw_torque_val, // 扭矩前馈输入值的地址
         .pid_ref = 0.0f,
     },
     .controller_setting_init_config = {
@@ -445,17 +468,18 @@ motor_init_config_t gimbal_4310_init = {
     },
 };
 
+/*轮向电机*/
 DJI_motor_instance_t *chassis_motor_drive_1;
 DJI_motor_instance_t *chassis_motor_drive_2;
 DJI_motor_instance_t *chassis_motor_drive_3;
 DJI_motor_instance_t *chassis_motor_drive_4;
-
+/*舵向电机*/
 DJI_motor_instance_t *chassis_motor_direct_1;
 DJI_motor_instance_t *chassis_motor_direct_2;
 DJI_motor_instance_t *chassis_motor_direct_3;
 DJI_motor_instance_t *chassis_motor_direct_4;
-
-DM_motor_t *gimbal_motor_yaw;
+/*云台yaw轴电机*/
+DM_motor_t *gimbal_motor_yaw;   //在初始化中默认使用MIT模式
 
 void Chassis_Init(void)
 {
@@ -576,6 +600,7 @@ void Chassis_Resolving(float x_speed, float y_speed, float omega_speed, float gi
             // target_speed = (v / r) × 减速比
             target_angle = chassis_motor_direct[i]->measure.rad + angle_diff;
             target_speed = speed_magnitude / WHEEL_RADIUS * WHEEL_REDUCTION_RATIO;
+
             // 发送控制指令
             DJI_Motor_Set_Ref(chassis_motor_direct[i], target_angle);
             DJI_Motor_Set_Ref(chassis_motor_drive[i], target_speed);
@@ -665,31 +690,101 @@ float Chassis_Get_Actual_Omega(void)
     }
 }
 
+/**
+ * @brief 目标速度斜坡控制函数
+ * @param ramp 速度斜坡控制结构体指针
+ * @param target 目标速度 (m/s)
+ * @return 当前输出速度 (m/s)
+ */
+float Delta_Target_Speed_Control(Speed_Ramp_t *ramp, float target)
+{
+    float error = target - ramp->last_speed;
+    float step = 0;
+
+    // 根据目标速度与当前输出的关系，判断是加速还是减速，加速步长小于减速步长
+    float abs_target = fabs(target);
+    float abs_last = fabs(ramp->last_speed);
+    step = (target * ramp->last_speed < 0) ? ramp->decel_step : ((abs_target > abs_last) ? ramp->accel_step : ramp->decel_step);
+    // 计算出步进后的速度
+    ramp->last_speed = (error > step) ? ramp->last_speed + step : ((error < -step) ? ramp->last_speed - step : target);
+
+    return ramp->last_speed;
+}
+
+/**
+ * @brief 目标角度斜坡控制函数
+ * @param pitch_step 角度斜坡步长 (rad)
+ * @return 当前输出角度 (rad)
+ */
+float Delta_Target_Angle_Control(float pitch_step)
+{
+    if (fabs(target_angle_yaw - target_angle_yaw_temp) >= pitch_step)
+    {
+        return (target_angle_yaw - target_angle_yaw_temp) >= 0
+                   ? (target_angle_yaw_temp + pitch_step)
+                   : (target_angle_yaw_temp - pitch_step);
+    }
+    else
+    {
+        return target_angle_yaw;
+    }
+}
+
 void Chassis_State_Machine(void)
 {
+    // 接收到的数据进行处理
     float target_x_speed = uart2_rx_message.target_x_speed;
     float target_y_speed = uart2_rx_message.target_y_speed;
     float target_omega_speed = uart2_rx_message.target_omega_speed;
     chassis_mode = uart2_rx_message.chassis_mode;
+    // float actual_omega_speed = Chassis_Get_Actual_Omega();
+    //  将云台yaw电机角速度反馈给上位机
+    uart2_tx_message.yaw_vel = gimbal_motor_yaw->receive_data.velocity;
+    // 速度斜坡控制
+    target_x_speed = Delta_Target_Speed_Control(&chassis_x_speed_ramp, target_x_speed);
+    target_y_speed = Delta_Target_Speed_Control(&chassis_y_speed_ramp, target_y_speed);
+    // 更新 last_speed
+    chassis_x_speed_ramp.last_speed = target_x_speed;
+    chassis_y_speed_ramp.last_speed = target_y_speed;
+
+    if (!yaw_flag)
+    {
+        yaw_zero_offset = gimbal_motor_yaw->receive_data.position;
+        yaw_flag = 1;
+    }
+
     if (init_count < 1000)
     {
         init_count++;
         chassis_mode = CHASSIS_MODE_STOP;
+        gimbal_angle_yaw_motor = gimbal_motor_yaw->receive_data.position;
+    }
+
+    if (chassis_mode == CHASSIS_MODE_AUTO && chassis_mode_last != CHASSIS_MODE_AUTO)
+    {
+        // 只有在切换的这一秒，让目标等于当前，实现平滑启动
+        target_angle_yaw_temp = target_angle_yaw;
     }
     switch (chassis_mode)
     {
     case CHASSIS_MODE_AUTO:
-        // target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
+
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, target_angle_yaw);
-        DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
-
+        target_angle_yaw_temp = Delta_Target_Angle_Control(0.0007f);
+        DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw_temp);
         DM_Motor_Control();
         chassis_mode_last = CHASSIS_MODE_AUTO;
         break;
 
     case CHASSIS_MODE_MANUAL:
-        //target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
+
+        // 设置云台yaw轴目标角度
+        if (fabs(target_omega_speed) != 0.0f)
+        {
+        target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
+        }
+
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, target_angle_yaw);
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
@@ -710,5 +805,34 @@ void Chassis_State_Machine(void)
         chassis_mode_last = CHASSIS_MODE_STOP;
         break;
     }
+
+    gimbal_angle_yaw_motor_last = gimbal_angle_yaw_motor; //更新上次数据值
+    gimbal_angle_yaw_motor = gimbal_motor_yaw->receive_data.position; //获取当前位置
+    gimbal_angle_yaw_motor2imu += (gimbal_angle_yaw_motor - gimbal_angle_yaw_motor_last);
+    if (fabs(uart2_rx_message.target_omega_speed) >= 0.001f)
+    {
+        gimbal_angle_yaw_motor2imu -= Chassis_Get_Actual_Omega() / 1035.0f;
+        //yaw_zero_offset -= Chassis_Get_Actual_Omega() / 1035.0f;
+    }
+    while (gimbal_angle_yaw_motor2imu < -PI)
+    {
+        gimbal_angle_yaw_motor2imu += 2 * PI;
+    }
+    while (gimbal_angle_yaw_motor2imu > PI)
+    {
+        gimbal_angle_yaw_motor2imu -= 2 * PI;
+    }
+
+    // while (yaw_zero_offset < -PI)
+    // {
+    //     yaw_zero_offset += 2 * PI;
+    // }
+    // while (yaw_zero_offset > PI)
+    // {
+    //     yaw_zero_offset -= 2 * PI;
+    // }
+    uart2_tx_message.gimbal_angle_yaw_motor2imu = gimbal_angle_yaw_motor2imu; //获得用电机解算出的当前yaw角
+    uart2_tx_message.yaw_zero_offset = yaw_zero_offset; //初始电机类imu零点的绝对值
+    uart2_tx_message.abs_yaw = gimbal_motor_yaw->receive_data.position;  //电机当前的绝对位置
     DJI_Motor_Control();
 }
