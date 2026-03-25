@@ -205,28 +205,6 @@ void VS_Send_Packet_Init(vs_send_packet_t *send_packet)
     send_packet->bullet_speed = 0;
     send_packet->bullet_count = 0;
 
-    /*tianjing*/
-    // send_packet->frame_header.sof = 0xA6; // 帧头赋值
-    // send_packet->frame_header.crc8 = 0;
-    // send_packet->output_data.config = 0.0f;
-    // send_packet->output_data.target_pose[0] = 0.0f;
-    // send_packet->output_data.target_pose[1] = 0.0f;
-    // send_packet->output_data.target_pose[2] = 0.0f;
-    // send_packet->output_data.curr_yaw = INS.Yaw;
-    // send_packet->output_data.curr_pitch = INS.Pitch;
-    // send_packet->output_data.enemy_color = 0;
-    // send_packet->output_data.shoot_config = 0;
-
-    // send_packet->sof = 0xA6; // 帧头赋值
-    // send_packet->crc8 = 0;
-    // send_packet->config = 0.0f;
-    // send_packet->target_pose0 = 0.0f;
-    // send_packet->target_pose1 = 0.0f;
-    // send_packet->target_pose2 = 0.0f;
-    // send_packet->curr_yaw = INS.Yaw;
-    // send_packet->curr_pitch = INS.Pitch;
-    // send_packet->enemy_color = 0;
-    // send_packet->shoot_config = 0;
 }
 
 /* 初始化接收自上位机的视觉数据包 */

@@ -1,12 +1,12 @@
 /**
  * @file digital_pid.h
  * @author guatai (2508588132@qq.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-08-12
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 
 #ifndef __DIGITAL_PID_H__
@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include "user_lib.h" 
+#include "user_lib.h"
 
 /*
  * 先暂时T:采样周期0.01s(10ms)
@@ -64,14 +64,9 @@ typedef struct
     float dead_band;
 
     float dt; // 即使不使用，也能监测运行频率
-    uint32_t DWT_cnt;
 
     float output_LPF_RC; // 输出滤波器 RC = 1/omegac
 
-    PID_improvement_e improve; // PID开启优化选项
-    uint8_t lost_cnt;
-    uint16_t error_cnt;
-    uint8_t error_flag;
     float ref_p; // 设定值
     float fab_p; // 反馈值
 
@@ -80,7 +75,6 @@ typedef struct
     float d_out_last;
     float derivative_LPF_RC; // 微分滤波器系数
     float derivative_gama;   // 微分先行系数
-    uint16_t lost_integral_cnt;    // 丢失积分
 
     float err_pre;
     float err_last;
@@ -93,6 +87,13 @@ typedef struct
     float output;
     float output_last;
 
+    uint32_t DWT_cnt;
+
+    PID_improvement_e improve; // PID开启优化选项
+    uint8_t lost_cnt;
+    uint16_t error_cnt;
+    uint8_t error_flag;
+    uint16_t lost_integral_cnt; // 丢失积分
     ramp_function_source_t *ramp_target;
 } __attribute__((__packed__)) digital_PID_t;
 

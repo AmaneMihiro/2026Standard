@@ -48,8 +48,9 @@ void Shoot_Task_Init(void)
 }
 
 uint32_t shoot_task_diff;
-uint32_t NNN = 0;
+// int16_t NNN = 0;
 uint32_t MMM = 0;
+float t=0;
 
 static void Shoot_Task(void *argument)
 {
@@ -57,9 +58,12 @@ static void Shoot_Task(void *argument)
     Shoot_Enable();
     for (;;)
     {
-        MMM = target_shoot_rpm;
+        //MMM = target_shoot_rpm;
         // DJI_Motor_Set_Ref(chassis_shoot_motor, MMM);
-        NNN = chassis_shoot_motor->measure.speed;
+        // NNN = chassis_shoot_motor->measure.real_current;
+
+        t = chassis_shoot_motor->measure.real_current;
+
         Shoot_State_Machine();
         shoot_task_diff = osKernelGetTickCount() - time;
         time = osKernelGetTickCount();

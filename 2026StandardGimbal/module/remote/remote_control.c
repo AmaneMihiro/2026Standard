@@ -26,6 +26,11 @@ static uint8_t rc_init_flag = 0; // 遥控器初始化标志位
 static USART_t *rc_usart_instance;
 static supervisor_t *rc_supervisor_instance; // 监视器实例
 
+const RC_ctrl_t* get_remote_control_ptr(void)
+{
+    return rc_ctrl;
+}
+
 /**
  * @brief 矫正遥控器摇杆的值,超过660或者小于-660的值都认为是无效值,置0
  *
@@ -101,25 +106,6 @@ static void sbus_to_rc(const uint8_t *sbus_buf)
 	memcpy(&rc_ctrl[LAST], &rc_ctrl[TEMP], sizeof(RC_ctrl_t)); // 保存上一次的数据,用于按键持续按下和切换的判断
 }
 
-/**
- * @brief 根据shift键获取底盘档位
- */
-void Update_Chassis_Gear(void)
-{
-	static uint8_t last_gear_state = 0;
-	uint8_t current_gear_state = rc_ctrl[TEMP].key[KEY_PRESS].shift; // shift键作为档位切换的触发键
-    
-	if(current_gear_state == 1 && last_gear_state == 0)
-	{
-		// 档位切换逻辑
-		current_gear++;
-		if(current_gear >= SPEED_GEAR_COUNT)
-		{
-			current_gear = GEAR_PRECISION; // 循环回到最低档
-		}
-	}
-	last_gear_state = current_gear_state;
-}
 
 /**
  * @brief 对sbus_to_rc的简单封装,用于注册到bsp_usart的回调函数中

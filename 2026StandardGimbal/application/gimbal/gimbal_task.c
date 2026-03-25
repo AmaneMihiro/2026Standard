@@ -26,6 +26,7 @@
 #include "DM_motor.h"
 #include "rs485.h"
 #include "remote_control.h"
+#include "Keyboard_Control.h"
 
 #include "VPC.h"
 #include "Serial.h"
@@ -86,35 +87,38 @@ static void Gimbal_Task(void *argument)
 
     for (;;)
     {
-        //uint32_t Last_time = DWT->CYCCNT;
-        Remote_Deadzone_Control();
-        Get_Gimbal_Mode();
-        Gimbal_State_Machine();
+        // uint32_t Last_time = DWT->CYCCNT;
+
         // TTT = target_angle_pitch;
         // AAA = gimbal_motor_pitch->measure.rad;
 
-    //    gimbal_motor_pitch->motor_controller.speed_PID->kp = SP;
-    //    gimbal_motor_pitch->motor_controller.speed_PID->ki = SI;
-    //    gimbal_motor_pitch->motor_controller.speed_PID->kd = SD;
-    //    gimbal_motor_pitch->motor_controller.angle_PID->kp = AP;
-    //    gimbal_motor_pitch->motor_controller.angle_PID->ki = AI;
-    //    gimbal_motor_pitch->motor_controller.angle_PID->kd = AD;
+        //    gimbal_motor_pitch->motor_controller.speed_PID->kp = SP;
+        //    gimbal_motor_pitch->motor_controller.speed_PID->ki = SI;
+        //    gimbal_motor_pitch->motor_controller.speed_PID->kd = SD;
+        //    gimbal_motor_pitch->motor_controller.angle_PID->kp = AP;
+        //    gimbal_motor_pitch->motor_controller.angle_PID->ki = AI;
+        //    gimbal_motor_pitch->motor_controller.angle_PID->kd = AD;
 
-//    gimbal_pitch_speed_digital_pid.Kf = AF;
-//        gimbal_pitch_angle_digital_pid.Kp = AP;
-//        gimbal_pitch_angle_digital_pid.Ki = AI;
-//        gimbal_pitch_angle_digital_pid.Kd = AD;
-//        gimbal_pitch_speed_digital_pid.Kf = SF;
-//        gimbal_pitch_speed_digital_pid.Kp = SP;
-//        gimbal_pitch_speed_digital_pid.Ki = SI;
-//        gimbal_pitch_speed_digital_pid.Kd = SD;
+        //    gimbal_pitch_speed_digital_pid.Kf = AF;
+        //        gimbal_pitch_angle_digital_pid.Kp = AP;
+        //        gimbal_pitch_angle_digital_pid.Ki = AI;
+        //        gimbal_pitch_angle_digital_pid.Kd = AD;
+        //        gimbal_pitch_speed_digital_pid.Kf = SF;
+        //        gimbal_pitch_speed_digital_pid.Kp = SP;
+        //        gimbal_pitch_speed_digital_pid.Ki = SI;
+        //        gimbal_pitch_speed_digital_pid.Kd = SD;
+
+         Keyboard_Control();
+        Remote_Deadzone_Control();
+        Get_Gimbal_Mode();
+        Gimbal_State_Machine();
+
         Chassis_Control();
         uart2_online_check();
 
         VPC_UpdatePackets();
-        //NV_Pack_And_Send_Data_ROS2(&nv_aim_packet_to_nuc); // 导航数据包发送
-        VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); // 新视觉数据包发送
-        // Pack_And_Send_Data_ROS2(&aim_packet_to_nuc);    //旧视觉数据包发送
+        // NV_Pack_And_Send_Data_ROS2(&nv_aim_packet_to_nuc); // 导航数据包发送
+        VS_Pack_And_Send_Data_ROS2(&vs_aim_packet_to_nuc); // 导航数据包发送
         gimbal_task_diff = osKernelGetTickCount() - time;
         time = osKernelGetTickCount();
         osDelayUntil(time + GIMBAL_TASK_PERIOD);

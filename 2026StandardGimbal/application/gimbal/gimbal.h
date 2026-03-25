@@ -22,10 +22,12 @@
 
 #include "digital_pid.h"
 
+#define GIMBAL_MODE_SEMIAUTO 3
 #define GIMBAL_MODE_AUTO 2
 #define GIMBAL_MODE_MANUAL 1
 #define GIMBAL_MODE_STOP 0
 
+#define CHASSIS_MODE_SEMIAUTO 3
 #define CHASSIS_MODE_AUTO 2
 #define CHASSIS_MODE_MANUAL 1
 #define CHASSIS_MODE_STOP 0
@@ -40,17 +42,11 @@ typedef struct
     /* data */
 }__attribute__((packed))gimbal_cmd_t;    
 
-typedef enum
-{
-    GEAR_PRECISION,
-    GEAR_NORMAL,
-    GEAR_AGILE,
-    SPEED_GEAR_COUNT,
-}Speed_Gear_e;
+
 
 extern DJI_motor_instance_t *gimbal_motor_pitch;
 extern DM_motor_t *gimbal_motor_yaw;
-extern Speed_Gear_e current_gear;
+
 
 extern digital_PID_t gimbal_pitch_angle_digital_pid;
 extern digital_PID_t gimbal_pitch_speed_digital_pid;

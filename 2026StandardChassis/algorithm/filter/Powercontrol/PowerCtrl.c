@@ -2,6 +2,7 @@
 #include "DJI_motor.h" // quote chassis_motor information
 #include "referee.h"
 #include "chassis.h"
+#include "robot_frame_init.h"
 // #include "SuperCap.h"
 
 float P_cal[8] = {0};   // 电机功率模型计算出的功率
@@ -9,7 +10,7 @@ float P_total = 0;      // 测量总功率
 float P_total_temp = 0; // 临时总功率
 
 float P_cmd[8] = {0};        // 以最大功率上线分配所得的功率
-float chassis_max_power = 0; // 底盘最大功率 , 5~8W 的误差
+float chassis_max_power = 65; // 底盘最大功率 , 5~8W 的误差
 
 float I_temp[8] = {0};
 
@@ -30,7 +31,7 @@ void chassis_power_control(void)
                                                     chassis_motor_direct_2,
                                                     chassis_motor_direct_3,
                                                     chassis_motor_direct_4};
-    //  超电断联错误判断,例子，还待实际上超级电容后验证
+     //超电断联错误判断,例子，还待实际上超级电容后验证
     // if (supercap_rx_data.errorCode != 0 || refree_info.Game_Robot_state.chassis_power_limit == 0)
     // {
     //     chassis_max_power = 30; // 出错时，给一个较低的功率限制
@@ -48,6 +49,7 @@ void chassis_power_control(void)
     //     chassis_max_power = refree_info.Game_Robot_state.chassis_power_limit - 7 + E_k * 300; //-7是因为存在相对误差，300为超电最大输出功率
     // }
 
+    //chassis_max_power = referee_data->Game_Robot_state.chassis_power_limit - 10;
     // 功率模型
     for (uint8_t i = 0; i < motor_index; i++) // first get all the initial motor power and total motor power
     {

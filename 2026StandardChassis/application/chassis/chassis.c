@@ -24,12 +24,12 @@
 #include "DM_motor.h"
 #include "DJI_motor.h"
 #include "rs485.h"
-
+#include "referee.h"
 // 舵向电机零点偏移 (弧度)
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_1 620.0f / 8192.0f * 2 * PI
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_2 1270.0f / 8192.0f * 2 * PI
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_3 3380.0f / 8192.0f * 2 * PI
-#define CHASSIS_MOTOR_DIRECT_ZEROPOINT_4 680.0f / 8192.0f * 2 * PI
+#define CHASSIS_MOTOR_DIRECT_ZEROPOINT_4 1962.0f / 8192.0f * 2 * PI
 
 // 底盘物理参数
 #define CHASSIS_RADIUS 0.21917f      // 底盘半径 (m)
@@ -93,18 +93,18 @@ PID_t chassis_6020_speed_pid = {
 };
 
 PID_t gimbal_4310_angle_pid = {
-    .kp = 12.0f,//15.0f,//12.0f 
-    .ki = 0.0f, //0.0f,
-    .kd = 3.0f,//1.2f, //3.0f,  
-    .output_limit = 20.0f,//5.0f,
+    .kp = 12.0f,           // 15.0f,//12.0f
+    .ki = 0.0f,            // 0.0f,
+    .kd = 3.0f,            // 1.2f, //3.0f,
+    .output_limit = 20.0f, // 5.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
 };
 
 PID_t gimbal_4310_speed_pid = {
-    .kp = 1.5f, //1.5f,
-    .ki = 0.01f,//0.005f,//0.01f,
-    .kd = 0.5f,//0.005f,//5.0f,
+    .kp = 1.5f,  // 1.5f,
+    .ki = 0.01f, // 0.005f,//0.01f,
+    .kd = 0.5f,  // 0.005f,//5.0f,
     .kf = 25.0f,
     .output_limit = 15.0f,
     .integral_limit = 10.0f,
@@ -440,7 +440,7 @@ motor_init_config_t gimbal_4310_init = {
         .torque_PID = NULL,
 
         .other_angle_feedback_ptr = &yaw_angle_feedback,
-        .other_speed_feedback_ptr = &yaw_speed_feedback,//NULL,
+        .other_speed_feedback_ptr = &yaw_speed_feedback, // NULL,
 
         .angle_feedforward_ptr = NULL,
         .speed_feedforward_ptr = NULL,
@@ -748,7 +748,7 @@ void Chassis_State_Machine(void)
     // 更新 last_speed
     chassis_x_speed_ramp.last_speed = target_x_speed;
     chassis_y_speed_ramp.last_speed = target_y_speed;
-    
+
     if (init_count < 1000)
     {
         init_count++;
@@ -756,7 +756,7 @@ void Chassis_State_Machine(void)
         gimbal_angle_yaw_motor = gimbal_motor_yaw->receive_data.position;
     }
 
-    if (chassis_mode == CHASSIS_MODE_AUTO && chassis_mode_last != CHASSIS_MODE_AUTO)
+    if (chassis_mode != chassis_mode_last)
     {
         // 只有在切换的这一秒，让目标等于当前，实现平滑启动
         target_angle_yaw_temp = target_angle_yaw;
@@ -764,24 +764,29 @@ void Chassis_State_Machine(void)
 
     switch (chassis_mode)
     {
-    case CHASSIS_MODE_AUTO:
-
-        // 设置云台yaw轴目标角度
-        // if (fabs(target_omega_speed) != 0.0f)
-        // {
-        //     target_angle_yaw -= Chassis_Get_Actual_Omega() / 1035.0f;
-        // }
+    case CHASSIS_MODE_SEMIAUTO:
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, gimbal_motor_yaw->receive_data.position);
         //target_angle_yaw_temp = Delta_Target_Angle_Control(0.0007f);
 
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
         DM_Motor_Control();
+        chassis_mode_last = CHASSIS_MODE_SEMIAUTO;
+        break;
+
+    case CHASSIS_MODE_AUTO:
+
+        Chassis_Enable();
+        Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, gimbal_motor_yaw->receive_data.position);
+        target_angle_yaw_temp = Delta_Target_Angle_Control(0.0007f);
+
+        DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw_temp);
+        DM_Motor_Control();
         chassis_mode_last = CHASSIS_MODE_AUTO;
         break;
 
     case CHASSIS_MODE_MANUAL:
-        
+
         // // 设置云台yaw轴目标角度
         // if (fabs(target_omega_speed) != 0.0f)
         // {
@@ -790,7 +795,7 @@ void Chassis_State_Machine(void)
 
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, gimbal_motor_yaw->receive_data.position);
-        //target_angle_yaw_temp = Delta_Target_Angle_Control(0.00007f);
+        // target_angle_yaw_temp = Delta_Target_Angle_Control(0.00007f);
 
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
 

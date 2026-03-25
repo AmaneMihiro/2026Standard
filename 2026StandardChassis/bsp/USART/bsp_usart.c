@@ -187,6 +187,7 @@ uint8_t USART_Error_Lost(USART_t *_instance)
  * @param huart 发生中断的串口
  * @param Size 此次接收到的总数居量,暂时没用
  */
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     for (uint8_t i = 0; i < idx; ++i)
@@ -207,6 +208,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
             return; // break the loop
         }
     }
+
 }
 
 /**

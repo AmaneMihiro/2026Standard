@@ -11,6 +11,12 @@ typedef struct
     uint8_t frame_header;
     float gimbal_angle_yaw_motor2imu;
     float yaw_vel;
+    uint8_t is_play;
+    uint16_t game_time;   // 比赛时间
+    uint16_t enemy_score; // 对方胜利点
+    uint16_t own_score;   // 己方胜利点
+    uint16_t own_hp[3];   // 己方血量 0 哨兵 1 英雄 2 步兵
+    uint8_t event_data;    //占领点数据
     uint8_t frame_tailer;
     uint8_t check_sum;
 } __attribute__((packed)) Tx_packed_t;
@@ -26,6 +32,7 @@ typedef struct
     float target_omega_speed;
     float INS_yaw;
     float INS_Gyro_Z;
+    uint8_t posture;
     uint8_t frame_tailer;
     uint8_t check_sum;
 } __attribute__((packed)) Rx_packed_t;
@@ -43,6 +50,9 @@ extern uint8_t uart2_status;
 extern uint32_t last_uart2_uwTick;
 extern uint8_t uart2_current_byte;
 extern uint8_t rs485_status;
+
+// extern uint8_t rev_buf[256];
+// extern uint16_t receive_len;
 
 void uart2_send_data(Tx_packed_t *data_p);
 void uart2_transmit_control(void);

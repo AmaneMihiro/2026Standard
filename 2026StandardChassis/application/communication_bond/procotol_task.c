@@ -22,6 +22,9 @@
 
 #include "message_center.h"
 
+#include "usart.h"
+#include "rs485.h"
+
 #define PROCOTOL_TASK_PERIOD 10 // ms
 
 osThreadId_t procotol_task_handel;
@@ -46,14 +49,15 @@ void Procotol_Task_Init( void )
 
 uint32_t procotol_task_diff;
 
+
 static void Procotol_Task( void *argument )
 {
+		//HAL_UART_Receive_IT(&huart1,rev_buf,receive_len);
     uint32_t time = osKernelGetTickCount( );
-
     for( ; ; )
     {
-//        VOFA_Display_IMU();
-				VOFA_Display_Pitch();
+
+			
 					
         procotol_task_diff = osKernelGetTickCount( ) - time;
         time = osKernelGetTickCount( );

@@ -11,7 +11,7 @@
 #include "DJI_motor.h"
 
 #include "bsp_dwt.h"
-
+#include "PowerCtrl.h"
 static uint8_t idx = 0; // register idx,是该文件的全局电机索引,在注册时使用
 /* DJI电机的实例,此处仅保存指针,内存的分配将通过电机实例初始化时通过malloc()进行 */
 static DJI_motor_instance_t *dji_motor_instances[DJI_MOTOR_CNT] = {NULL}; // 会在control任务中遍历该指针数组进行pid计算
@@ -30,7 +30,7 @@ void DJI_Motor_Error_Detection(DJI_motor_instance_t *motor);
  * can1: [0]:0x1FF,[1]:0x200,[2]:0x2FF
  * can2: [3]:0x1FF,[4]:0x200,[5]:0x2FF
  */
- static CAN_instance_t sender_assignment[15] = {
+static CAN_instance_t sender_assignment[15] = {
     [0] = {.can_handle = &hfdcan1, .tx_header.Identifier = 0x1ff, .tx_header.IdType = FDCAN_STANDARD_ID, .tx_header.DataLength = FDCAN_DLC_BYTES_8, .tx_buff = {0}},
     [1] = {.can_handle = &hfdcan1, .tx_header.Identifier = 0x200, .tx_header.IdType = FDCAN_STANDARD_ID, .tx_header.DataLength = FDCAN_DLC_BYTES_8, .tx_buff = {0}},
     [2] = {.can_handle = &hfdcan1, .tx_header.Identifier = 0x2ff, .tx_header.IdType = FDCAN_STANDARD_ID, .tx_header.DataLength = FDCAN_DLC_BYTES_8, .tx_buff = {0}},
@@ -476,20 +476,42 @@ void DJI_Motor_Control(void)
         motor->target.current = (int16_t)pid_ref;
 
         // 分组填入发送数据
+        // group = motor->sender_group;
+        // num = motor->message_num;
+        // sender_assignment[group].tx_buff[2 * num] = (uint8_t)(motor->target.current >> 8);         // 低八位
+        // sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(motor->target.current & 0x00ff); // 高八位
+
+        // // 若该电机处于停止状态,直接将buff置零
+        // if (motor->motor_state_flag == MOTOR_DISABLE)
+        // {
+        //     PID_Clear(motor_controller->angle_PID);
+        //     PID_Clear(motor_controller->speed_PID);
+        //     memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
+        // }
+    }
+    /* ------------------------------handler------------------------------------*/
+
+    // 功率控制
+    	chassis_power_control();
+    
+    for (size_t i = 0; i < idx; ++i)
+    {
+        motor = dji_motor_instances[i];
+
+        // 分组填入发送数据
         group = motor->sender_group;
         num = motor->message_num;
-        sender_assignment[group].tx_buff[2 * num] = (uint8_t)(motor->target.current >> 8);         // 低八位
-        sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(motor->target.current & 0x00ff); // 高八位
+        sender_assignment[group].tx_buff[2 * num] = (uint8_t)(motor->target.current >> 8);         // 高八位
+        sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(motor->target.current & 0x00ff); // 低八位
 
         // 若该电机处于停止状态,直接将buff置零
         if (motor->motor_state_flag == MOTOR_DISABLE)
         {
-            PID_Clear(motor_controller->angle_PID);
-            PID_Clear(motor_controller->speed_PID);
+            PID_Init(motor_controller->angle_PID);
+            PID_Init(motor_controller->speed_PID);
             memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
         }
     }
-    /* ------------------------------handler------------------------------------*/
 
     // 遍历flag,检查是否要发送这一帧报文TODO(GUATAI):后续应解耦，能够由开发者来选择何时发送，来达到每个模块不同控制频率的需求
     for (size_t i = 0; i < 15; ++i)

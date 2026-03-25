@@ -17,8 +17,10 @@
 #include "rs485.h"
 
 
+
+#define SHOOT_MODE_FIRE 2
+#define SHOOT_MODE_READY 1
 #define SHOOT_MODE_STOP 0
-#define SHOOT_MODE_FIRE 1
 typedef struct 
 {
     /* data */
@@ -27,7 +29,13 @@ typedef struct
 typedef struct
 {
     /* data */
-}__attribute__((packed))shoot_cmd_t;   
+}__attribute__((packed))shoot_cmd_t;  
+
+typedef enum
+{
+    S_NORMAL,
+    S_REVERSING,
+}FeederState_e;
 
 extern uint8_t shoot_mode;
 extern uint8_t shoot_mode_last;

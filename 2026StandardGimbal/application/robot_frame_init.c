@@ -29,6 +29,7 @@
 #include "INS.h"
 #include "procotol.h"
 #include "VPC.h"
+#include "referee.h"
 
 #include "bmi088.h"
 #include "ws2812.h"
@@ -43,7 +44,7 @@
 
 float init_time;
 RC_ctrl_t *rc_data;
-
+Referee_PicInfoTypedef *Referee_Picdata;
 static void Frame_MCU_Init(void)
 {
     DWT_Init(480);
@@ -57,9 +58,9 @@ static void Frame_Device_Init(void)
     bmi088_h7 = BMI088_Register(&bmi088_init_h7);
 
     rc_data = Remote_Control_Init(&huart5);
-
-    //VOFA_Register(&huart7);
-    // BMI088_Init(&hspi2,0);
+    Referee_Picdata = RefereePic_Init(&huart1);
+    // VOFA_Register(&huart7);
+    //  BMI088_Init(&hspi2,0);
 
     Gimbal_Init();
     Shoot_Init();
@@ -85,7 +86,6 @@ static void Frame_Task_Init(void)
     INS_Task_Init();
 
     Procotol_Task_Init();
-
 }
 
 void Robot_Frame_Init(void)

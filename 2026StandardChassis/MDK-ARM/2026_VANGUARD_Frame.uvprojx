@@ -81,7 +81,7 @@
           </BeforeMake>
           <AfterMake>
             <RunUserProg1>0</RunUserProg1>
-            <RunUserProg2>0</RunUserProg2>
+            <RunUserProg2>1</RunUserProg2>
             <UserProg1Name></UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_PWR_LDO_SUPPLY,USE_HAL_DRIVER,STM32H723xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/ARM/DSP/Inc;../bsp/DWT;../bsp/USART;../bsp/CAN;../bsp/I2C;../bsp/SPI;../bsp/FLASH;../bsp/TIM;../bsp/PWM;../bsp/ADC;../bsp/GPIO;../module/buzzer;../module/imu;../module/led;../module/vofa;../module/led/WS2812;../module/motor;../module/remote;../module/defense_center;../module/message_center;../algorithm;../algorithm/controller;../algorithm/controller/PID;../module/motor/DJI_motor;../module/motor/DM_motor;../algorithm/basic_function;../application/chassis;../application/communication_bond;../application/gimbal;../application/shoot;../algorithm/filter;../algorithm/filter/AHRS;../algorithm/filter/AHRS/madgwick;../algorithm/filter/AHRS/mahony;../algorithm/filter/EKF;../algorithm/filter/kalman;../Middlewares/ST/ARM/DSP/Lib;../application;../application/alarm_system;../application/INS;../module/imu/BMI088;../module/rs485;../module/referee;..\algorithm\filter\Powercontrol</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc;../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32H7xx/Include;../Drivers/CMSIS/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Middlewares/ST/ARM/DSP/Inc;../bsp/DWT;../bsp/USART;../bsp/CAN;../bsp/I2C;../bsp/SPI;../bsp/FLASH;../bsp/TIM;../bsp/PWM;../bsp/ADC;../bsp/GPIO;../module/buzzer;../module/imu;../module/led;../module/vofa;../module/led/WS2812;../module/motor;../module/remote;../module/defense_center;../module/message_center;../algorithm;../algorithm/controller;../algorithm/controller/PID;../module/motor/DJI_motor;../module/motor/DM_motor;../algorithm/basic_function;../application/chassis;../application/communication_bond;../application/gimbal;../application/shoot;../algorithm/filter;../algorithm/filter/AHRS;../algorithm/filter/AHRS/madgwick;../algorithm/filter/AHRS/mahony;../algorithm/filter/EKF;../algorithm/filter/kalman;../Middlewares/ST/ARM/DSP/Lib;../application;../application/alarm_system;../application/INS;../module/imu/BMI088;../module/rs485;../module/referee;../algorithm/filter/Powercontrol;../module/ShooterUI</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -2085,6 +2085,91 @@
               <FileName>referee.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\module\referee\referee.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_0.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_0.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_0.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_0.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_1.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_1.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_1.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_2.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_2.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_2.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_3.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_3.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_3.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_3.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_4.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_4.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group1_4.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group1_4.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group2_0.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group2_0.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_Infantry_group2_0.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_Infantry_group2_0.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_interface.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\ShooterUI\ui_interface.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_interface.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_interface.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_types.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\module\ShooterUI\ui_types.h</FilePath>
             </File>
           </Files>
         </Group>

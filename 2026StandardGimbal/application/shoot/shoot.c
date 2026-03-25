@@ -16,12 +16,12 @@
 #include "gimbal.h"
 #include "remote_control.h"
 #include "rs485.h"
-#include "shoot_motor.h" 
+#include "shoot_motor.h"
 #include "serial.h"
 
 #define FRICTION_WHEEL_RADIUS 0.025f    // 半径 25mm = 0.025m
 #define FRICTION_SLIP_COEFFICIENT 0.85f // 经验打滑系数，摩擦轮与子弹间存在一定打滑，一般取0.8~0.9
-#define FRICTION_MOTOR_MAX_RPM 7000.0f  // 摩擦轮电机最高转速 (最高实际约8000rpm，但留有余量)
+#define FRICTION_MOTOR_RPM 8000.0f      // 摩擦轮电机转速 (最高为8000rpm，对应弹速约为23m/s)
 
 #define PC_SHOOT_FIRE 2
 #define PC_SHOOT_AIM 1
@@ -29,7 +29,7 @@
 uint8_t shoot_mode = 0;
 uint8_t shoot_mode_last = 0;
 
-float BULLET_V = 23.0f; // 目标弹速 (m/s)  因为摩擦轮最高转速8000rpm，理论上弹速极限约为20.94m/s（打滑系数为1的理想状态下）
+float BULLET_V = 23.0f; // 目标弹速 (m/s)
 
 PID_t gimbal_test_angle_pid = {
     .kp = 12.0f,
@@ -204,53 +204,82 @@ void Shoot_SetAll(float speed)
  * @param bullet_speed 目标弹速 (m/s)
  * @return float 电机转速参考值 (rpm)
  */
-static inline float BulletSpeed_to_RPM(float bullet_speed)
-{
-    // 防止输入过小的弹速值
-    if (bullet_speed < 0.5f)
-        return 0.0f;
-    // 1. 根据物理公式计算理论转速 (RPM)
-    // 公式推导: n = (v * 60) / (2 * PI * r * k)
-    float target_rpm = (bullet_speed * 60.0f) /
-                       (2.0f * PI * FRICTION_WHEEL_RADIUS * FRICTION_SLIP_COEFFICIENT);
+// static inline float BulletSpeed_to_RPM(float bullet_speed)
+// {
+//     // 防止输入过小的弹速值
+//     if (bullet_speed < 0.5f)
+//         return 0.0f;
+//     // 1. 根据物理公式计算理论转速 (RPM)
+//     // 公式推导: n = (v * 60) / (2 * PI * r * k)
+//     float target_rpm = (bullet_speed * 60.0f) /
+//                        (2.0f * PI * FRICTION_WHEEL_RADIUS * FRICTION_SLIP_COEFFICIENT);
 
-    // 确保计算出的转速不会超过电机的硬件极限
-    if (target_rpm > FRICTION_MOTOR_MAX_RPM)
-    {
-        target_rpm = FRICTION_MOTOR_MAX_RPM;
-    }
-    else if (target_rpm < 0.0f)
-    {
-        target_rpm = 0.0f; // 防止误输入负数
-    }
+//     // 确保计算出的转速不会超过电机的硬件极限
+//     if (target_rpm > FRICTION_MOTOR_MAX_RPM)
+//     {
+//         target_rpm = FRICTION_MOTOR_MAX_RPM;
+//     }
+//     else if (target_rpm < 0.0f)
+//     {
+//         target_rpm = 0.0f; // 防止误输入负数
+//     }
 
-    return target_rpm;
-}
+//     return target_rpm;
+// }
 
 void Get_Shoot_Mode(void)
 {
-    if (switch_is_up(rc_data->rc.switch_left) && switch_is_up(rc_data->rc.switch_right))
-    {
-        uint8_t pc_mode = vs_aim_packet_from_nuc.mode; // 或者是从 uart rx buffer 解析出来的变量
+    uint8_t pc_mode = vs_aim_packet_from_nuc.mode;
 
-        switch (pc_mode)
-        {
-        case PC_SHOOT_FIRE: // 2: 瞄准且发射
-            shoot_mode = SHOOT_MODE_FIRE;
-            break;
-        case PC_SHOOT_AIM: // 1: 瞄准但不发射 (进入 READY 状态)
-            shoot_mode = SHOOT_MODE_READY;
-            break;
-        case PC_SHOOT_STOP:
-            shoot_mode = SHOOT_MODE_READY;
-            break;
-        default:
-            shoot_mode = SHOOT_MODE_STOP;
-            break;
-        }
-    }
-    else
+    switch (gimbal_mode)
     {
+    case GIMBAL_MODE_SEMIAUTO:
+        if (rc_data->mouse.press_l)
+        {
+            shoot_mode = SHOOT_MODE_FIRE;
+        }
+        else if (rc_data->mouse.press_r)
+        {
+            if (pc_mode == PC_SHOOT_FIRE)
+            {
+                shoot_mode = SHOOT_MODE_FIRE;
+            }
+            else if (pc_mode == PC_SHOOT_AIM)
+            {
+                shoot_mode = SHOOT_MODE_READY;
+            }
+            else
+            {
+                shoot_mode = SHOOT_MODE_READY;
+            }
+        }
+        else
+            shoot_mode = SHOOT_MODE_READY;
+        break;
+
+    case GIMBAL_MODE_AUTO:
+        if (switch_is_up(rc_data->rc.switch_right))
+        {
+            if (pc_mode == PC_SHOOT_FIRE)
+            {
+                shoot_mode = SHOOT_MODE_FIRE;
+            }
+            else if (pc_mode == PC_SHOOT_AIM)
+            {
+                shoot_mode = SHOOT_MODE_READY;
+            }
+            else
+            {
+                shoot_mode = SHOOT_MODE_READY;
+            }
+        }
+        else if (switch_is_mid(rc_data->rc.switch_right))
+        {
+            shoot_mode = SHOOT_MODE_READY;
+        }
+        break;
+
+    case GIMBAL_MODE_MANUAL:
         if (switch_is_up(rc_data->rc.switch_right))
         {
             shoot_mode = SHOOT_MODE_FIRE;
@@ -259,14 +288,18 @@ void Get_Shoot_Mode(void)
         {
             shoot_mode = SHOOT_MODE_READY;
         }
-        else if (switch_is_down(rc_data->rc.switch_right))
-        {
-            shoot_mode = SHOOT_MODE_STOP;
-        }
         else
         {
             shoot_mode = SHOOT_MODE_STOP;
         }
+        break;
+
+    case GIMBAL_MODE_STOP:
+        shoot_mode = SHOOT_MODE_STOP;
+        break;
+    default:
+        shoot_mode = SHOOT_MODE_STOP;
+        break;
     }
 }
 
@@ -283,16 +316,15 @@ void Shoot_State_Machine(void)
         switch (shoot_mode)
         {
         case SHOOT_MODE_FIRE:
-            uart2_tx_message.shoot_mode = 1;
+            uart2_tx_message.shoot_mode = 2;
             Shoot_Enable();
-            Shoot_SetAll(8000);
+            Shoot_SetAll(FRICTION_MOTOR_RPM);
             break;
 
         case SHOOT_MODE_READY:
-            uart2_tx_message.shoot_mode = 0;
-            // Shoot_Stop();
+            uart2_tx_message.shoot_mode = 1;
             Shoot_Enable();
-            Shoot_SetAll(8000);
+            Shoot_SetAll(FRICTION_MOTOR_RPM);
             break;
 
         case SHOOT_MODE_STOP:
