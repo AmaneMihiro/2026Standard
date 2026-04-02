@@ -206,6 +206,7 @@ void Shoot_SetAll(float speed)
 
 void Shoot_Ready()
 {
+    /*采用或而不是与，避免电调偶发错误导致无法发弹*/
     if (shoot_motor_1->receive_flag == 0xA5 || shoot_motor_2->receive_flag == 0xA5 || shoot_motor_3->receive_flag == 0xA5)
     {
         fric_pretime_cnt++;
@@ -213,7 +214,7 @@ void Shoot_Ready()
     else
     fric_pretime_cnt = 0;
 
-    if (fric_pretime_cnt > 600) // 大于三秒允许发射
+    if (fric_pretime_cnt > 3000) // 大于三秒允许发射
     {
         fire_ready_flag = 1;
     }
@@ -362,13 +363,13 @@ void Shoot_State_Machine(void)
             break;
 
         case SHOOT_MODE_STOP:
-            fric_pretime_count = 0;
+            fric_pretime_cnt = 0;
             uart2_tx_message.shoot_mode = 0;
             Shoot_Stop();
             break;
 
         default:
-            fric_pretime_count = 0;
+            fric_pretime_cnt = 0;
             uart2_tx_message.shoot_mode = 0;
             Shoot_Stop();
             break;

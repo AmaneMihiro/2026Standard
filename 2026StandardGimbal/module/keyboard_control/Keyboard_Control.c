@@ -20,7 +20,7 @@
 #define PITCH_SENSITIVITY 0.000015f // 键盘输入转换为俯仰角的灵敏度调整参数
 #define YAW_SENSITIVITY 0.000015f   // 键盘输入转换为底盘速度的灵敏度调整参数
 
-static const float chassis_gear_speed[SPEED_GEAR_COUNT] = {1.0f, 1.5f, 2.5f}; // 不同档位（低，中，高）对应的底盘最大速度
+static const float chassis_gear_speed[SPEED_GEAR_COUNT] = {1.5f, 2.0f, 2.5f}; // 不同档位（低，中，高）对应的底盘最大速度
 Speed_Gear_e current_gear = GEAR_PRECISION;									  // 默认低速档
 
 float keyboard_speed_x = 0.0f;		// 键盘输入的底盘X方向速度

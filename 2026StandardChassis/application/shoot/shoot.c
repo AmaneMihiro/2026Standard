@@ -18,23 +18,25 @@
 
 FeederState_e currentState = S_NORMAL;
 
-/* 拨弹盘物理参数定义 */
+/*拨弹盘物理参数*/
 #define SHOOT_WHEEL_BULLET_COUNT 8.0f // 拨弹盘一圈的弹丸数
 #define M2006_REDUCTION_RATIO 36.0f   // M2006电机减速比
 /*堵转控制参数*/
-#define SHOOT_CURRENT_STALL 8500.0f // 堵转电流
-#define SHOOT_SPEED_STALL 5.0f      // 堵转速度
-#define SHOOT_TIME_STALL 120        // 堵转时间
-#define REVERSING_TIME 300          // 反转时间
+#define SHOOT_CURRENT_STALL 8700.0f // 堵转电流
+#define SHOOT_SPEED_STALL 2.0f      // 堵转速度
 #define REVERSE_RADS -10.0f         // 反转速度
+#define SHOOT_TIME_STALL 800        // 堵转时间
+#define SHOOT_TIME_REVERSING 800    // 反转时间
+#define SHOOT_TIME_STOP 1000        // 停转时间
 /*热量控制参数*/
 #define HEAT_SAFETY_MARGIN_HIGH 30.0f // 热量上限安全余量
 #define HEAT_SAFETY_MARGIN_LOW 90.0f  // 热量下限安全余量
+
+float shoot_hz = 15.0f; // 射击频率（发/秒）
 uint16_t target_shoot_rads = 0;
-float shoot_hz = 15.0f;          // 射击频率（发/秒）
-uint8_t stall_counter = 0;       // 堵转时间计数
-uint16_t reverse_counter = 0;    // 反转时间计数
-uint8_t stall_cnt = 0;           // 堵转次数计数
+uint16_t stall_cnt = 0;          // 堵转时间计数
+uint16_t reverse_cnt = 0;        // 反转时间计数
+uint16_t stop_cnt = 0;           // 停止计数
 static bool heat_locked = false; // 热量锁定标志，初始为false,表示未锁定
 
 extern Referee_InfoTypedef *referee_data;
@@ -168,42 +170,45 @@ float Stall_Control_Loop(float target_rads)
 {
     float shoot_speed = chassis_shoot_motor->measure.speed;
     float shoot_current = chassis_shoot_motor->measure.real_current;
-    bool reverse_first = 1; 
-			if (currentState == S_NORMAL)
+    // bool reverse_first = 1;
+    if (currentState == S_NORMAL)
     {
         // 1. 堵转检测
         if (fabsf(shoot_speed) < SHOOT_SPEED_STALL && fabsf(shoot_current) > SHOOT_CURRENT_STALL)
         {
-            stall_counter++;
-            if (stall_counter >= SHOOT_TIME_STALL)
+            stall_cnt++;
+            if (stall_cnt >= SHOOT_TIME_STALL)
             {
                 // 确认堵转，切换到反转状态
                 currentState = S_REVERSING;
-                stall_counter = 0;
-                reverse_counter = 0;
+                stall_cnt = 0;
+                reverse_cnt = 0;
+                stop_cnt = 0;
                 PID_Clear(chassis_shoot_motor->motor_controller.speed_PID);
             }
         }
         else
         {
-            // 正常状态，计数器清零
-            stall_counter = 0;
+            // 正常状态，堵转计数器清零
+            stall_cnt = 0;
         }
     }
     else if (currentState == S_REVERSING)
     {
-        if (reverse_first)
+        if (stop_cnt <= SHOOT_TIME_STOP)
         {
+            // 保持停止，让拨弹盘自然泄力回转
             Shoot_Stop();
-            reverse_first = 0;
+            stop_cnt++;
         }
-        reverse_counter++;
-        if (reverse_counter >= REVERSING_TIME)
+        else
+            reverse_cnt++;
+
+        if (reverse_cnt >= SHOOT_TIME_REVERSING)
         {
-            // 反转结束，恢复正常
             currentState = S_NORMAL;
 
-            // TODO: 在这里调用你的 PID 清除积分函数，防止恢复正转时猛冲
+            // 调用PID清除积分函数，防止恢复正转时猛冲
             PID_Clear(chassis_shoot_motor->motor_controller.speed_PID);
         }
         return REVERSE_RADS; // 处于反转状态，强制覆盖目标转速
@@ -222,11 +227,11 @@ void Shoot_State_Machine(void)
         shoot_mode = SHOOT_MODE_STOP;
     }
 
-    // Update_OverHeated(); // 更新过热状态
-    // if (heat_locked == true && shoot_mode == SHOOT_MODE_FIRE)
-    // {
-    //     shoot_mode = SHOOT_MODE_READY;
-    // }
+    Update_OverHeated(); // 更新过热状态
+    if (heat_locked == true && shoot_mode == SHOOT_MODE_FIRE)
+    {
+        shoot_mode = SHOOT_MODE_READY;
+    }
 
     if (chassis_mode)
     {

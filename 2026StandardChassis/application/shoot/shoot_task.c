@@ -25,7 +25,7 @@
 #include "DJI_motor.h"
 #include "remote_control.h"
 
-#define SHOOT_TASK_PERIOD 5 // ms
+#define SHOOT_TASK_PERIOD 1 // ms
 
 osThreadId_t shoot_task_handel;
 
@@ -62,7 +62,7 @@ static void Shoot_Task(void *argument)
         // DJI_Motor_Set_Ref(chassis_shoot_motor, MMM);
         // NNN = chassis_shoot_motor->measure.real_current;
 
-        t = chassis_shoot_motor->measure.real_current;
+        //t = chassis_shoot_motor->measure.real_current;
 
         Shoot_State_Machine();
         shoot_task_diff = osKernelGetTickCount() - time;

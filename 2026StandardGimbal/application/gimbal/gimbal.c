@@ -342,6 +342,7 @@ float Get_Target_Angle_Yaw(uint8_t mode)
 
 float Get_Target_Oemga_Speed(uint8_t mode)
 {
+
     static float spin_time = 0.0f; // 累加时间变量
     float omega_speed = 0.0f;
 
@@ -369,20 +370,34 @@ float Get_Target_Oemga_Speed(uint8_t mode)
     case GIMBAL_MODE_AUTO:
         if (vs_aim_packet_from_nuc.circle == 1)
         {
-            omega_speed = 2.0f * PI;
-        }
-        else
-            omega_speed = 0;
-        break;
-    case GIMBAL_MODE_MANUAL:
-        if (rc_data->rc.dial)
-        {
             spin_time += dt;
             omega_speed = base_omega + range_omega * sinf(frequency * spin_time);
         }
         else
         {
             spin_time = 0;
+            omega_speed = 0;
+        }
+
+        break;
+    case GIMBAL_MODE_MANUAL:
+        // if (rc_data->rc.dial)
+        // {
+        //     spin_time += dt;
+        //     omega_speed = base_omega + range_omega * sinf(frequency * spin_time);
+        // }
+        // else
+        // {
+        //     spin_time = 0;
+        //     omega_speed = 0;
+        // }
+
+        if (rc_data->rc.dial)
+        {
+            omega_speed = base_omega;
+        }
+        else
+        {
             omega_speed = 0;
         }
         break;
@@ -395,17 +410,27 @@ float Get_Target_Oemga_Speed(uint8_t mode)
     }
     return omega_speed;
 }
-void Chassis_Control(void)
+
+void Target_Angle_Yaw_Limit()
 {
-    uart2_tx_message.chassis_mode = Get_Chassis_Mode(gimbal_mode); //(gimbal_mode == GIMBAL_MODE_MANUAL);
     if (target_angle_yaw > 2 * PI)
         target_angle_yaw -= 2 * PI;
-    if (target_angle_yaw - INS.Yaw < -PI)
+    if (target_angle_yaw < -2 * PI)
         target_angle_yaw += 2 * PI;
-    uart2_tx_message.delta_target_angle_yaw = target_angle_yaw; // Get_Target_Angle_Yaw(gimbal_mode);
+    if (target_angle_yaw > PI)
+        target_angle_yaw -= 2 * PI;
+    if (target_angle_yaw < -PI)
+        target_angle_yaw += 2 * PI;
+}
+
+void Chassis_Control(void)
+{
+    uart2_tx_message.chassis_mode = Get_Chassis_Mode(gimbal_mode);
+    Target_Angle_Yaw_Limit();
+    uart2_tx_message.target_angle_yaw = target_angle_yaw;
     // aaa = Get_Target_Angle_Yaw(gimbal_mode);
-    uart2_tx_message.target_x_speed = Get_Chassis_X_Speed(gimbal_mode); // rc_data->rc.rocker_l1 * 0.005f;
-    uart2_tx_message.target_y_speed = Get_Chassis_Y_Speed(gimbal_mode); // rc_data->rc.rocker_l_ * 0.005f;
+    uart2_tx_message.target_x_speed = Get_Chassis_X_Speed(gimbal_mode);
+    uart2_tx_message.target_y_speed = Get_Chassis_Y_Speed(gimbal_mode);
     uart2_tx_message.INS_yaw = INS.Yaw;
     uart2_tx_message.INS_Gyro_Z = INS.Gyro[IMU_Z];
     uart2_tx_message.target_omega_speed = Get_Target_Oemga_Speed(gimbal_mode);
@@ -525,19 +550,9 @@ void Gimbal_State_Machine(void)
             //     scan_time = 0.0f;
             // }
             // target_angle_yaw -= SCAN_STEP_YAW;
-            // if (target_angle_yaw > PI)
-            //     target_angle_yaw -= 2 * PI;
-            // if (target_angle_yaw < -PI)
-            //     target_angle_yaw += 2 * PI;
             // scan_time += 0.005f;
             // target_angle_pitch = 0.2f * sinf(scan_time) + 0.08f;
             // target_angle_pitch_temp = target_angle_pitch;
-
-            target_angle_pitch -= rc_data->rc.rocker_r1 * 0.0000025f;
-            target_angle_pitch_temp = Delta_Target_Angle_Control(0.007f);
-            target_angle_pitch_temp = Value_Limit(target_angle_pitch_temp, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
-            // target_angle_pitch = target_angle_pitch_temp;
-            target_angle_yaw -= rc_data->rc.rocker_r_ * 0.00001f;
         }
         else if (vs_aim_packet_from_nuc.mode == 1 || vs_aim_packet_from_nuc.mode == 2) // 识别到目标，进入自瞄模式
         {

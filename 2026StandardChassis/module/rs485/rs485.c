@@ -114,7 +114,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 接收回调函数
             {
                 // 通讯刚恢复的第一帧！
                 // 强制把平滑过渡的 temp 值对齐到云台发来的第一个真实角度上
-                target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
+                target_angle_yaw = uart2_rx_message.target_angle_yaw;
                 target_angle_yaw_temp = target_angle_yaw;
 
                 // 如果前面失能了电机，这里重新使能
@@ -125,7 +125,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 接收回调函数
             else
             {
                 // 通讯正常时的逻辑，更新 target_angle_yaw
-               target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
+               target_angle_yaw = uart2_rx_message.target_angle_yaw;
             }
             //target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
             last_uart2_uwTick = uwTick;
@@ -147,7 +147,7 @@ void uart2_online_check(void)
         uart2_rx_message.target_omega_speed = 0;
         target_angle_yaw = gimbal_motor_yaw->receive_data.position;
         target_angle_yaw_temp = target_angle_yaw;
-        uart2_rx_message.delta_target_angle_yaw = target_angle_yaw;
+        uart2_rx_message.target_angle_yaw = target_angle_yaw;
         PID_Clear(gimbal_motor_yaw->motor_controller.angle_PID);
         PID_Clear(gimbal_motor_yaw->motor_controller.speed_PID);
         // Chassis_Stop();

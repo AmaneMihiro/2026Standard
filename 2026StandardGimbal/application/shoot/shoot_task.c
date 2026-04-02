@@ -24,7 +24,7 @@
 #include "message_center.h"
 #include "shoot_motor.h"
 
-#define SHOOT_TASK_PERIOD 5 // ms
+#define SHOOT_TASK_PERIOD 1 // ms
 
 osThreadId_t shoot_task_handel;
 
