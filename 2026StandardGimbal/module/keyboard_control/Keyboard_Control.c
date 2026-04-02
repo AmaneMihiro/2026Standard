@@ -4,6 +4,7 @@
  * @history
  * 版本			作者			编写日期
  * v1.0.0		miracle		2026/3/18
+ * v1.0.1       miracle     2026/3/26  初步完成各种功能的按键对应，如需更改按键更改数组对应字符即可
  */
 
 // application
@@ -14,10 +15,12 @@
 #include "remote_control.h"
 
 #include "stdbool.h"
-#define PITCH_SENSITIVITY 0.0003f // 键盘输入转换为俯仰角的灵敏度调整参数
-#define YAW_SENSITIVITY 0.001f	  // 键盘输入转换为底盘速度的灵敏度调整参数
 
-static const float chassis_gear_speed[SPEED_GEAR_COUNT] = {0.5f, 2.0f, 3.0f}; // 不同档位（低，中，高）对应的底盘最大速度
+/*灵敏度对应图传键鼠灵敏度36*/
+#define PITCH_SENSITIVITY 0.000015f // 键盘输入转换为俯仰角的灵敏度调整参数
+#define YAW_SENSITIVITY 0.000015f   // 键盘输入转换为底盘速度的灵敏度调整参数
+
+static const float chassis_gear_speed[SPEED_GEAR_COUNT] = {1.0f, 1.5f, 2.5f}; // 不同档位（低，中，高）对应的底盘最大速度
 Speed_Gear_e current_gear = GEAR_PRECISION;									  // 默认低速档
 
 float keyboard_speed_x = 0.0f;		// 键盘输入的底盘X方向速度
@@ -25,49 +28,40 @@ float keyboard_speed_y = 0.0f;		// 键盘输入的底盘Y方向速度
 float keyboard_target_pitch = 0.0f; // 键盘输入的目标俯仰角
 float keyboard_target_yaw = 0.0f;	// 键盘输入的目标偏航角
 uint8_t Control_Mode = 0;			// 0：遥控器控制 1：键盘控制
+uint8_t Omega_flag = 0;				// 小陀螺模式标志位
+uint8_t FRIC_flag = 0;				// 摩擦轮启动标志位
 
 /*
  *@brief 更新控制模式
  */
-void Update_Control_Mode()
+static void inline Update_Control_Mode()
 {
-	uint8_t current_mode_state = rc_data->key_count[KEY_PRESS][Key_B]; // 'b'键作为控制模式切换的触发键
-
-	if (current_mode_state % 2 == 1)
-	{
-		Control_Mode = Mode_Keyboard; // 键盘控制模式
-	}
-	else
-	{
-		Control_Mode = Mode_Remote; // 遥控器控制模式
-	}
+	Control_Mode = (rc_data->key_count[KEY_PRESS][Key_B] % 2); // B键作为键盘控制模式切换的触发键
 }
 
-void Update_Chassis_Gear()
+static void inline Update_Chassis_Gear()
 {
-	static uint8_t last_gear_state = 0;
-	uint8_t current_gear_state = rc_data->key_count[KEY_PRESS][Key_Shift]; // shift键作为档位切换的触发键
+	current_gear = (rc_data->key_count[KEY_PRESS][Key_C] % SPEED_GEAR_COUNT); // C键作为移动档位切换的触发键
+}
 
-	if (current_gear_state > last_gear_state) // 检测到shift键的上升沿
-	{
-		// 档位切换逻辑
-		current_gear++;
-		if (current_gear >= SPEED_GEAR_COUNT)
-		{
-			current_gear = GEAR_PRECISION; // 循环回到最低档
-		}
-	}
-	last_gear_state = current_gear_state;
+static void inline Update_Chassis_Omega()
+{
+	Omega_flag = (rc_data->key_count[KEY_PRESS][Key_Z] % 2); // F键作为小陀螺切换的触发键
+}
+
+static void inline Update_Fire_Ready()
+{
+	FRIC_flag = (rc_data->key_count[KEY_PRESS][Key_R] % 2); // R键作为发射准备切换的触发键
 }
 
 static float inline Get_Current_Chassis_Speed_X()
 {
-	return (rc_data->key[KEY_PRESS].w - rc_data->key[KEY_PRESS].s) * chassis_gear_speed[current_gear];
+	return (rc_data->key[KEY_PRESS].w - rc_data->key[KEY_PRESS].s) * chassis_gear_speed[current_gear]; //x方向速度控制
 }
 
 static float inline Get_Current_Chassis_Speed_Y()
 {
-	return (rc_data->key[KEY_PRESS].a - rc_data->key[KEY_PRESS].d) * chassis_gear_speed[current_gear];
+	return (rc_data->key[KEY_PRESS].a - rc_data->key[KEY_PRESS].d) * chassis_gear_speed[current_gear]; //y方向速度控制
 }
 
 static float inline Get_Current_Target_Pitch()
@@ -85,13 +79,17 @@ static float inline Get_Current_Target_Yaw()
  */
 void Keyboard_Control(void)
 {
-
+    //切换按键更新
 	Update_Control_Mode();
 	Update_Chassis_Gear();
+	Update_Chassis_Omega();
+	Update_Fire_Ready();
 
+	//速度更新
 	keyboard_speed_x = Get_Current_Chassis_Speed_X();
 	keyboard_speed_y = Get_Current_Chassis_Speed_Y();
 
+	//云台目标角度更新
 	keyboard_target_pitch = Get_Current_Target_Pitch();
 	keyboard_target_yaw = Get_Current_Target_Yaw();
 }

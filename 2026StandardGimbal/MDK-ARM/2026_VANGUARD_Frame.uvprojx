@@ -2575,6 +2575,21 @@
               <FilePath>..\application\ShooterUI\ui.h</FilePath>
             </File>
             <File>
+              <FileName>ui_interface.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\application\ShooterUI\ui_interface.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_interface.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\application\ShooterUI\ui_interface.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_types.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\application\ShooterUI\ui_types.h</FilePath>
+            </File>
+            <File>
               <FileName>ui_Infantry_group1_0.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\application\ShooterUI\ui_Infantry_group1_0.c</FilePath>
@@ -2633,21 +2648,6 @@
               <FileName>ui_Infantry_group2_0.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\application\ShooterUI\ui_Infantry_group2_0.h</FilePath>
-            </File>
-            <File>
-              <FileName>ui_interface.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\application\ShooterUI\ui_interface.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_interface.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\application\ShooterUI\ui_interface.h</FilePath>
-            </File>
-            <File>
-              <FileName>ui_types.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\application\ShooterUI\ui_types.h</FilePath>
             </File>
           </Files>
         </Group>

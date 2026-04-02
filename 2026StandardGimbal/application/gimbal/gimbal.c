@@ -27,7 +27,7 @@
 // #define RC_SENSITIVITY_Y 0.002f // 遥控器Y轴速度灵敏度（靶车模式）
 
 // 扫描相关参数
-#define SCAN_STEP_YAW 0.005f
+#define SCAN_STEP_YAW 0.003f
 
 #include "gimbal_task.h"
 #include "gimbal.h"
@@ -52,6 +52,7 @@ uint8_t gimbal_mode = 0;
 uint8_t gimbal_mode_last = 0;
 float target_angle_pitch = 0;
 float target_angle_yaw = 0;
+float target_angle_yaw_temp = 0;
 float target_angle_pitch_temp = 0;
 float angle_pitch = 0;
 float angle_pitch_motor = 0;
@@ -267,7 +268,7 @@ float Get_Chassis_X_Speed(uint8_t mode)
         x_speed = keyboard_speed_x;
         break;
     case GIMBAL_MODE_AUTO:
-        x_speed = vs_aim_packet_from_nuc.vx;
+        x_speed = 0; // vs_aim_packet_from_nuc.vx;
         break;
     case GIMBAL_MODE_MANUAL:
         x_speed = manual_chassis_speed_x;
@@ -303,7 +304,7 @@ float Get_Chassis_Y_Speed(uint8_t mode)
         y_speed = keyboard_speed_y;
         break;
     case GIMBAL_MODE_AUTO:
-        y_speed = vs_aim_packet_from_nuc.vy;
+        y_speed = 0; // vs_aim_packet_from_nuc.vy;
         break;
     case GIMBAL_MODE_MANUAL:
         y_speed = manual_chassis_speed_y;
@@ -341,12 +342,30 @@ float Get_Target_Angle_Yaw(uint8_t mode)
 
 float Get_Target_Oemga_Speed(uint8_t mode)
 {
-    float omega_speed = 0;
+    static float spin_time = 0.0f; // 累加时间变量
+    float omega_speed = 0.0f;
+
+    /*变频参数配置*/
+    const float base_omega = 2.5f * PI;  // 基础转速
+    const float range_omega = 0.5f * PI; // 变化振幅
+    const float frequency = 2.0f;        // 变化频率
+    const float dt = 0.001f;             // 控制频率
+
     switch (mode)
     {
     case GIMBAL_MODE_SEMIAUTO:
-        omega_speed = 0;
+        if (Omega_flag == 1) // 开启小陀螺
+        {
+            spin_time += dt;
+            omega_speed = base_omega + range_omega * sinf(frequency * spin_time);
+        }
+        else
+        {
+            spin_time = 0;
+            omega_speed = 0;
+        }
         break;
+
     case GIMBAL_MODE_AUTO:
         if (vs_aim_packet_from_nuc.circle == 1)
         {
@@ -358,10 +377,14 @@ float Get_Target_Oemga_Speed(uint8_t mode)
     case GIMBAL_MODE_MANUAL:
         if (rc_data->rc.dial)
         {
-            omega_speed = 2.0f * PI;
+            spin_time += dt;
+            omega_speed = base_omega + range_omega * sinf(frequency * spin_time);
         }
         else
+        {
+            spin_time = 0;
             omega_speed = 0;
+        }
         break;
     case GIMBAL_MODE_STOP:
         omega_speed = 0;
@@ -375,7 +398,11 @@ float Get_Target_Oemga_Speed(uint8_t mode)
 void Chassis_Control(void)
 {
     uart2_tx_message.chassis_mode = Get_Chassis_Mode(gimbal_mode); //(gimbal_mode == GIMBAL_MODE_MANUAL);
-    uart2_tx_message.delta_target_angle_yaw = Get_Target_Angle_Yaw(gimbal_mode);
+    if (target_angle_yaw > 2 * PI)
+        target_angle_yaw -= 2 * PI;
+    if (target_angle_yaw - INS.Yaw < -PI)
+        target_angle_yaw += 2 * PI;
+    uart2_tx_message.delta_target_angle_yaw = target_angle_yaw; // Get_Target_Angle_Yaw(gimbal_mode);
     // aaa = Get_Target_Angle_Yaw(gimbal_mode);
     uart2_tx_message.target_x_speed = Get_Chassis_X_Speed(gimbal_mode); // rc_data->rc.rocker_l1 * 0.005f;
     uart2_tx_message.target_y_speed = Get_Chassis_Y_Speed(gimbal_mode); // rc_data->rc.rocker_l_ * 0.005f;
@@ -397,8 +424,6 @@ float Delta_Target_Angle_Control(float pitch_step)
         return target_angle_pitch;
     }
 }
-
-float target_angle_yaw_temp = 0;
 
 float Delta_Target_AngleYaw_Control(float pitch_step)
 {
@@ -455,20 +480,22 @@ void Gimbal_State_Machine(void)
     {
     case GIMBAL_MODE_SEMIAUTO:
         target_angle_pitch -= keyboard_target_pitch;
-        target_angle_pitch = Value_Limit(target_angle_pitch, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
-        target_angle_pitch_temp = Delta_Target_Angle_Control(0.0008f);
+        target_angle_pitch_temp = target_angle_pitch;
+        target_angle_pitch_temp = Value_Limit(target_angle_pitch_temp, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
 
-        target_angle_yaw = angle_yaw + keyboard_target_yaw;
+        target_angle_yaw -= keyboard_target_yaw;
         if (rc_data->mouse.press_r)
         {
             if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
             {
                 // 如果视觉模式为1（发现目标），则直接覆盖目标角度
-                if (vs_aim_packet_from_nuc.mode == 1)
+                if (vs_aim_packet_from_nuc.mode == 1 || vs_aim_packet_from_nuc.mode == 2)
                 {
                     if (vs_aim_packet_from_nuc.pitch != 0.0f)
                     {
                         target_angle_pitch = vs_aim_packet_from_nuc.pitch;
+                        target_angle_pitch_temp = Delta_Target_Angle_Control(0.007f);
+                        target_angle_pitch_temp = Value_Limit(target_angle_pitch, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
                     }
                     if (vs_aim_packet_from_nuc.yaw != 0.0f)
                     {
@@ -479,9 +506,9 @@ void Gimbal_State_Machine(void)
         }
         DJI_Motor_Enable(gimbal_motor_pitch);
 
-         // 外置PID控制
+        // 外置PID控制
         Digital_PID_Position(&gimbal_pitch_angle_digital_pid, INS.Pitch, target_angle_pitch_temp);
-        // gimbal_pitch_speed_ramp_source->real_value = ramp_calc(gimbal_pitch_speed_ramp_source, gimbal_pitch_angle_digital_pid.output);
+        // gimbal_pitch_speed_ramp_source->real_value =  (gimbal_pitch_speed_ramp_source, gimbal_pitch_angle_digital_pid.output);
         // temp_speed_target = gimbal_pitch_speed_ramp_source->real_value;
         // Digital_PID_Increment(&gimbal_pitch_speed_digital_pid, INS.Gyro[IMU_X], temp_speed_target);
         Digital_PID_Increment(&gimbal_pitch_speed_digital_pid, INS.Gyro[IMU_X], gimbal_pitch_angle_digital_pid.output);
@@ -491,40 +518,51 @@ void Gimbal_State_Machine(void)
         break;
     case GIMBAL_MODE_AUTO:
         // imu控制
-        if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
+        if (vs_aim_packet_from_nuc.mode == 0) // 丢失目标，进入扫描模式
         {
-            if (vs_aim_packet_from_nuc.mode == 0) // 丢失目标，进入扫描模式
-            {
-                if (auto_mode_last == 1 || auto_mode_last == 2)
-                {
-                    scan_time = 0.0f;
-                    // target_angle_pitch_temp = angle_pitch;
-                }
-                target_angle_yaw += SCAN_STEP_YAW;
-                if (target_angle_yaw > PI)
-                    target_angle_yaw -= 2 * PI;
-                if (target_angle_yaw < -PI)
-                    target_angle_yaw += 2 * PI;
-                scan_time += 0.01f;
-                target_angle_pitch = 0.35f * sinf(scan_time);
-            }
-            else if (vs_aim_packet_from_nuc.mode == 1 || vs_aim_packet_from_nuc.mode == 2) // 识别到目标，进入自瞄模式
-            {
-                target_angle_pitch = vs_aim_packet_from_nuc.pitch;
-                target_angle_yaw = vs_aim_packet_from_nuc.yaw;
-            }
-            auto_mode_last = vs_aim_packet_from_nuc.mode;
+            // if (auto_mode_last == 1 || auto_mode_last == 2)
+            // {
+            //     scan_time = 0.0f;
+            // }
+            // target_angle_yaw -= SCAN_STEP_YAW;
+            // if (target_angle_yaw > PI)
+            //     target_angle_yaw -= 2 * PI;
+            // if (target_angle_yaw < -PI)
+            //     target_angle_yaw += 2 * PI;
+            // scan_time += 0.005f;
+            // target_angle_pitch = 0.2f * sinf(scan_time) + 0.08f;
+            // target_angle_pitch_temp = target_angle_pitch;
+
+            target_angle_pitch -= rc_data->rc.rocker_r1 * 0.0000025f;
+            target_angle_pitch_temp = Delta_Target_Angle_Control(0.007f);
+            target_angle_pitch_temp = Value_Limit(target_angle_pitch_temp, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
+            // target_angle_pitch = target_angle_pitch_temp;
+            target_angle_yaw -= rc_data->rc.rocker_r_ * 0.00001f;
         }
-        target_angle_pitch = Value_Limit(target_angle_pitch, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
+        else if (vs_aim_packet_from_nuc.mode == 1 || vs_aim_packet_from_nuc.mode == 2) // 识别到目标，进入自瞄模式
+        {
+            // if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
+            // {
+            target_angle_pitch = vs_aim_packet_from_nuc.pitch;
+            target_angle_pitch_temp = Delta_Target_Angle_Control(0.003f);
+
+            target_angle_yaw = vs_aim_packet_from_nuc.yaw;
+            //}
+        }
+        auto_mode_last = vs_aim_packet_from_nuc.mode;
+
+        target_angle_pitch_temp = Value_Limit(target_angle_pitch_temp, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
         DJI_Motor_Enable(gimbal_motor_pitch);
         gimbal_mode_last = GIMBAL_MODE_AUTO;
         break;
 
     case GIMBAL_MODE_MANUAL:
-        target_angle_pitch = target_angle_pitch - rc_data->rc.rocker_r1 * 0.0000025f;
-        target_angle_pitch = Value_Limit(target_angle_pitch, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
+        target_angle_pitch -= rc_data->rc.rocker_r1 * 0.0000025f;
+        target_angle_pitch_temp = Delta_Target_Angle_Control(0.007f);
+        target_angle_pitch_temp = Value_Limit(target_angle_pitch_temp, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
         // target_angle_pitch = target_angle_pitch_temp;
-        target_angle_yaw = angle_yaw + rc_data->rc.rocker_r_ * 0.00002f;
+        target_angle_yaw -= rc_data->rc.rocker_r_ * 0.00001f;
+
         DJI_Motor_Enable(gimbal_motor_pitch);
 
         gimbal_mode_last = GIMBAL_MODE_MANUAL;
@@ -552,7 +590,7 @@ void Gimbal_State_Machine(void)
     if (gimbal_mode == GIMBAL_MODE_AUTO || gimbal_mode == GIMBAL_MODE_MANUAL)
     {
         // 外置PID控制
-        Digital_PID_Position(&gimbal_pitch_angle_digital_pid, INS.Pitch, target_angle_pitch);
+        Digital_PID_Position(&gimbal_pitch_angle_digital_pid, INS.Pitch, target_angle_pitch_temp);
         // gimbal_pitch_speed_ramp_source->real_value = ramp_calc(gimbal_pitch_speed_ramp_source, gimbal_pitch_angle_digital_pid.output);
         // temp_speed_target = gimbal_pitch_speed_ramp_source->real_value;
         // Digital_PID_Increment(&gimbal_pitch_speed_digital_pid, INS.Gyro[IMU_X], temp_speed_target);

@@ -24,10 +24,10 @@ uint32_t last_uart2_uwTick = 0; // 上次发送时间戳
 uint16_t uart2_buffer_length = 0;
 uint8_t uart2_current_byte = 0;
 
-
 float cnttttt = 0;
 uint8_t rs485_status = 0;
 
+static uint8_t is_uart2_was_offline = 0;
 static void uart2_append_byte(uint8_t byte)
 {
     if (uart2_buffer_length >= sizeof(uart2_receive_buffer))
@@ -110,15 +110,23 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // 接收回调函数
 
         if (uart2_extract_frame(&uart2_rx_message))
         {
-            if (uart2_rx_message.chassis_mode == CHASSIS_MODE_AUTO) //发的为目标的绝对角度
+            if (is_uart2_was_offline)
             {
+                // 通讯刚恢复的第一帧！
+                // 强制把平滑过渡的 temp 值对齐到云台发来的第一个真实角度上
                 target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
-            }
-            else //普通控制的增量式
-            {
-                target_angle_yaw = target_angle_yaw + uart2_rx_message.delta_target_angle_yaw;
-            } 
+                target_angle_yaw_temp = target_angle_yaw;
 
+                // 如果前面失能了电机，这里重新使能
+                // DM_Motor_Enable(gimbal_motor_yaw);
+
+                is_uart2_was_offline = 0; // 清除标志位，后续正常进入平滑控制
+            }
+            else
+            {
+                // 通讯正常时的逻辑，更新 target_angle_yaw
+               target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
+            }
             //target_angle_yaw = uart2_rx_message.delta_target_angle_yaw;
             last_uart2_uwTick = uwTick;
             uart2_status = ready_to_transmit;
@@ -137,11 +145,14 @@ void uart2_online_check(void)
         uart2_rx_message.target_x_speed = 0;
         uart2_rx_message.target_y_speed = 0;
         uart2_rx_message.target_omega_speed = 0;
-        uart2_rx_message.delta_target_angle_yaw = 0;
-        //Chassis_Stop();
+        target_angle_yaw = gimbal_motor_yaw->receive_data.position;
+        target_angle_yaw_temp = target_angle_yaw;
+        uart2_rx_message.delta_target_angle_yaw = target_angle_yaw;
+        PID_Clear(gimbal_motor_yaw->motor_controller.angle_PID);
+        PID_Clear(gimbal_motor_yaw->motor_controller.speed_PID);
+        // Chassis_Stop();
     }
-
- }
+}
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) // 发送回调函数
 {

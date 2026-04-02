@@ -63,21 +63,22 @@ void Gimbal_Task_Init(void)
 
 uint32_t gimbal_task_diff;
 
-// float TTT = 0;
-// float AAA = 0;
+float roll = 0;
 
-float TTT = 0.0f;
-float AAA = 0.0f;
-float SP = 0.0f;
-float SI = 0.0f;
-float SD = 0.0f;
-float AP = 0.0f;
-float AI = 0.0f;
-float AD = 0.0f;
+// float TTT = 0.0f;
+// float AAA = 0.0f;
+// float SP = 0.0f;
+// float SI = 0.0f;
+// float SD = 0.0f;
+// float AP = 0.0f;
+// float AI = 0.0f;
+// float AD = 0.0f;
 
-float AF = 0.0f;
-float SF = 0.0f;
-
+// float AF = 0.0f;
+// float SF = 0.0f;
+// 0.999676466
+// -0.0218013525
+// -0.0131037962
 static void Gimbal_Task(void *argument)
 {
 
@@ -89,7 +90,7 @@ static void Gimbal_Task(void *argument)
     {
         // uint32_t Last_time = DWT->CYCCNT;
 
-        // TTT = target_angle_pitch;
+         roll = INS.Roll;
         // AAA = gimbal_motor_pitch->measure.rad;
 
         //    gimbal_motor_pitch->motor_controller.speed_PID->kp = SP;
@@ -108,7 +109,7 @@ static void Gimbal_Task(void *argument)
         //        gimbal_pitch_speed_digital_pid.Ki = SI;
         //        gimbal_pitch_speed_digital_pid.Kd = SD;
 
-         Keyboard_Control();
+        Keyboard_Control();
         Remote_Deadzone_Control();
         Get_Gimbal_Mode();
         Gimbal_State_Machine();

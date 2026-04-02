@@ -27,6 +27,9 @@
 #include "DM_motor.h"
 #include "remote_control.h"
 #include "shoot.h"
+#include "defense_center.h"
+
+
 #define CHASSIS_TASK_PERIOD 1 // ms
 
 osThreadId_t robot_cmd_task_handel;
@@ -64,8 +67,10 @@ static void Chassis_Task(void *argument)
 
     for (;;)
     {
+        Supervisor_Task();
         Chassis_State_Machine();
-        // AAA = gimbal_motor_yaw->receive_data.position;
+        AAA = uart2_rx_message.INS_yaw;
+        TTT = target_angle_yaw;
         uart2_online_check();
 
         chassis_task_diff = osKernelGetTickCount() - time;

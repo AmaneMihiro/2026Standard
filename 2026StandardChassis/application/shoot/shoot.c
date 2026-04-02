@@ -13,24 +13,31 @@
 
 #include "shoot.h"
 #include "chassis.h"
+#include "referee.h"
+#include "stdbool.h"
 
 FeederState_e currentState = S_NORMAL;
 
 /* 拨弹盘物理参数定义 */
 #define SHOOT_WHEEL_BULLET_COUNT 8.0f // 拨弹盘一圈的弹丸数
 #define M2006_REDUCTION_RATIO 36.0f   // M2006电机减速比
-
-#define SHOOT_CURRENT_STALL 8000.0f  //堵转电流
-#define SHOOT_SPEED_STALL 5.0f    //堵转速度
-#define SHOOT_TIME_STALL 50   //堵转时间
-#define REVERSING_TIME 150  //反转时间
-#define REVERSE_RADS -10.0f   //反转速度
-
+/*堵转控制参数*/
+#define SHOOT_CURRENT_STALL 8500.0f // 堵转电流
+#define SHOOT_SPEED_STALL 5.0f      // 堵转速度
+#define SHOOT_TIME_STALL 120        // 堵转时间
+#define REVERSING_TIME 300          // 反转时间
+#define REVERSE_RADS -10.0f         // 反转速度
+/*热量控制参数*/
+#define HEAT_SAFETY_MARGIN_HIGH 30.0f // 热量上限安全余量
+#define HEAT_SAFETY_MARGIN_LOW 90.0f  // 热量下限安全余量
 uint16_t target_shoot_rads = 0;
-float shoot_hz = 7.0f; // 射击频率（发/秒）
-int stall_counter = 0;
-int reverse_counter = 0;
+float shoot_hz = 15.0f;          // 射击频率（发/秒）
+uint8_t stall_counter = 0;       // 堵转时间计数
+uint16_t reverse_counter = 0;    // 反转时间计数
+uint8_t stall_cnt = 0;           // 堵转次数计数
+static bool heat_locked = false; // 热量锁定标志，初始为false,表示未锁定
 
+extern Referee_InfoTypedef *referee_data;
 PID_t chassis_2006_speed_pid = {
     .kp = 80.0f,
     .ki = 15.0f,
@@ -142,13 +149,27 @@ static inline float BulletFreq_to_RadS(float hz) // inline 直接调用内容，
 //    }
 // }
 
+void Update_OverHeated(void)
+{
+    float heat_now = referee_data->Power_Heat_Data.shooter_17mm_1_barrel_heat;   // 当前热量
+    float heat_limit = referee_data->Game_Robot_state.shooter_barrel_heat_limit; // 热量上限
+
+    if (heat_now > heat_limit - HEAT_SAFETY_MARGIN_HIGH)
+    {
+        heat_locked = true; // 锁定射击
+    }
+    else if (heat_now < heat_limit - HEAT_SAFETY_MARGIN_LOW) // 当热量降到安全余量以下时解除锁定
+    {
+        heat_locked = false; // 解锁射击
+    }
+}
 
 float Stall_Control_Loop(float target_rads)
 {
     float shoot_speed = chassis_shoot_motor->measure.speed;
     float shoot_current = chassis_shoot_motor->measure.real_current;
-
-    if (currentState == S_NORMAL)
+    bool reverse_first = 1; 
+			if (currentState == S_NORMAL)
     {
         // 1. 堵转检测
         if (fabsf(shoot_speed) < SHOOT_SPEED_STALL && fabsf(shoot_current) > SHOOT_CURRENT_STALL)
@@ -171,6 +192,11 @@ float Stall_Control_Loop(float target_rads)
     }
     else if (currentState == S_REVERSING)
     {
+        if (reverse_first)
+        {
+            Shoot_Stop();
+            reverse_first = 0;
+        }
         reverse_counter++;
         if (reverse_counter >= REVERSING_TIME)
         {
@@ -195,16 +221,23 @@ void Shoot_State_Machine(void)
         init_count++;
         shoot_mode = SHOOT_MODE_STOP;
     }
+
+    // Update_OverHeated(); // 更新过热状态
+    // if (heat_locked == true && shoot_mode == SHOOT_MODE_FIRE)
+    // {
+    //     shoot_mode = SHOOT_MODE_READY;
+    // }
+
     if (chassis_mode)
     {
         switch (shoot_mode)
         {
 
         case SHOOT_MODE_FIRE:
+            Shoot_Enable();
             target_shoot_rads = BulletFreq_to_RadS(shoot_hz);
             float final_target_rads = Stall_Control_Loop(target_shoot_rads);
             DJI_Motor_Set_Ref(chassis_shoot_motor, final_target_rads);
-            Shoot_Enable();
             break;
         case SHOOT_MODE_READY:
             Shoot_Stop();

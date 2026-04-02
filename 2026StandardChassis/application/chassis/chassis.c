@@ -25,6 +25,8 @@
 #include "DJI_motor.h"
 #include "rs485.h"
 #include "referee.h"
+#include "user_lib.h"
+
 // 舵向电机零点偏移 (弧度)
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_1 620.0f / 8192.0f * 2 * PI
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_2 1270.0f / 8192.0f * 2 * PI
@@ -37,8 +39,8 @@
 #define WHEEL_REDUCTION_RATIO 14.88f // 轮子减速比
 
 // 速度步长
-#define ACC_SPEED_STEP 0.01f // 加速步长
-#define DEC_SPEED_STEP 0.01f // 减速步长
+#define ACC_SPEED_STEP 0.005f // 加速步长
+#define DEC_SPEED_STEP 0.005f // 减速步长
 
 float target_angle_yaw = 0;
 float target_angle_yaw_temp = 0;
@@ -53,6 +55,8 @@ float yaw_angle_feedback = 0.0f;
 float yaw_speed_feedback = 0.0f;
 float yaw_torque_val = 0.0f;
 
+uint8_t auto_mode = 0;
+uint8_t auto_mode_last = 0;
 // int brake_timer = 0;
 Speed_Ramp_t chassis_x_speed_ramp = {
     .last_speed = 0.0f,
@@ -93,21 +97,21 @@ PID_t chassis_6020_speed_pid = {
 };
 
 PID_t gimbal_4310_angle_pid = {
-    .kp = 12.0f,           // 15.0f,//12.0f
+    .kp = 14.0f,           // 15.0f,//12.0f
     .ki = 0.0f,            // 0.0f,
-    .kd = 3.0f,            // 1.2f, //3.0f,
-    .output_limit = 20.0f, // 5.0f,
+    .kd = 3.2f,            // 1.2f, //3.0f,
+    .output_limit = 10.0f, // 5.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
 };
-
+ 
 PID_t gimbal_4310_speed_pid = {
     .kp = 1.5f,  // 1.5f,
     .ki = 0.01f, // 0.005f,//0.01f,
-    .kd = 0.5f,  // 0.005f,//5.0f,
+    .kd = 0.3f,//0.5f,  // 0.005f,//5.0f,
     .kf = 25.0f,
-    .output_limit = 15.0f,
-    .integral_limit = 10.0f,
+    .output_limit = 3.0f,
+    .integral_limit = 2.0f,
     .fout_limit = 5.0f,
     .dead_band = 0.0f,
 };
@@ -718,18 +722,56 @@ float Delta_Target_Speed_Control(Speed_Ramp_t *ramp, float target)
  * @param pitch_step 角度斜坡步长 (rad)
  * @return 当前输出角度 (rad)
  */
-float Delta_Target_Angle_Control(float pitch_step)
+// float Delta_Target_Angle_Control(float pitch_step)
+// {
+//     if (fabs(target_angle_yaw - target_angle_yaw_temp) >= pitch_step)
+//     {
+//         return (target_angle_yaw - target_angle_yaw_temp) >= 0
+//                    ? (target_angle_yaw_temp + pitch_step)
+//                    : (target_angle_yaw_temp - pitch_step);
+//     }
+//     else
+//     {
+//         return target_angle_yaw;
+//     }
+// }
+
+float Delta_Target_Angle_Control(float step)
 {
-    if (fabs(target_angle_yaw - target_angle_yaw_temp) >= pitch_step)
+    // 1. 计算当前目标与临时目标之间的差值
+    float diff = target_angle_yaw - target_angle_yaw_temp;
+
+    // 2. 将差值限制在 [-PI, PI] 之间，寻找最短路径
+    while (diff > PI)
     {
-        return (target_angle_yaw - target_angle_yaw_temp) >= 0
-                   ? (target_angle_yaw_temp + pitch_step)
-                   : (target_angle_yaw_temp - pitch_step);
+        diff -= 2 * PI;
+    }
+    while (diff < -PI)
+    {
+        diff += 2 * PI;
+    }
+
+    // 3. 根据最短路径的差值进行步进
+    if (fabs(diff) >= step)
+    {
+        target_angle_yaw_temp += (diff > 0) ? step : -step;
     }
     else
     {
-        return target_angle_yaw;
+        target_angle_yaw_temp = target_angle_yaw;
     }
+
+    // 4. 将输出的 temp 角度也做规范化处理，防止溢出
+    while (target_angle_yaw_temp > PI)
+    {
+        target_angle_yaw_temp -= 2 * PI;
+    }
+    while (target_angle_yaw_temp < -PI)
+    {
+        target_angle_yaw_temp += 2 * PI;
+    }
+
+    return target_angle_yaw_temp;
 }
 
 void Chassis_State_Machine(void)
@@ -741,6 +783,7 @@ void Chassis_State_Machine(void)
     yaw_angle_feedback = uart2_rx_message.INS_yaw;
     yaw_speed_feedback = uart2_rx_message.INS_Gyro_Z;
     chassis_mode = uart2_rx_message.chassis_mode;
+
     uart2_tx_message.yaw_vel = gimbal_motor_yaw->receive_data.velocity;
     // 速度斜坡控制
     target_x_speed = Delta_Target_Speed_Control(&chassis_x_speed_ramp, target_x_speed);
@@ -778,9 +821,9 @@ void Chassis_State_Machine(void)
 
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, gimbal_motor_yaw->receive_data.position);
-        target_angle_yaw_temp = Delta_Target_Angle_Control(0.0007f);
+        //target_angle_yaw_temp = Delta_Target_Angle_Control(0.005f);
 
-        DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw_temp);
+        DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
         DM_Motor_Control();
         chassis_mode_last = CHASSIS_MODE_AUTO;
         break;
@@ -799,6 +842,11 @@ void Chassis_State_Machine(void)
 
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
 
+        if(gimbal_motor_yaw->error_code&DM_MOTOR_LOST_ERROR)
+        {
+            PID_Clear(gimbal_motor_yaw->motor_controller.angle_PID);
+            PID_Clear(gimbal_motor_yaw->motor_controller.speed_PID);
+        }
         DM_Motor_Control();
         chassis_mode_last = CHASSIS_MODE_MANUAL;
         break;

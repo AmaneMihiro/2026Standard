@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "shoot.h"
 #include "gimbal.h"
@@ -18,6 +19,7 @@
 #include "rs485.h"
 #include "shoot_motor.h"
 #include "serial.h"
+#include "Keyboard_Control.h"
 
 #define FRICTION_WHEEL_RADIUS 0.025f    // 半径 25mm = 0.025m
 #define FRICTION_SLIP_COEFFICIENT 0.85f // 经验打滑系数，摩擦轮与子弹间存在一定打滑，一般取0.8~0.9
@@ -28,6 +30,9 @@
 #define PC_SHOOT_STOP 0
 uint8_t shoot_mode = 0;
 uint8_t shoot_mode_last = 0;
+uint8_t fire_ready_flag = 0;
+
+uint32_t fric_pretime_cnt = 0;
 
 float BULLET_V = 23.0f; // 目标弹速 (m/s)
 
@@ -199,6 +204,22 @@ void Shoot_SetAll(float speed)
     Shoot_Motor_SetTar(shoot_motor_3, -speed); // 这个是在下方的摩擦轮，转动方向与另外两个相反
 }
 
+void Shoot_Ready()
+{
+    if (shoot_motor_1->receive_flag == 0xA5 || shoot_motor_2->receive_flag == 0xA5 || shoot_motor_3->receive_flag == 0xA5)
+    {
+        fric_pretime_cnt++;
+    }
+    else
+    fric_pretime_cnt = 0;
+
+    if (fric_pretime_cnt > 600) // 大于三秒允许发射
+    {
+        fire_ready_flag = 1;
+    }
+    else
+        fire_ready_flag = 0;
+}
 /**
  * @brief 针对摩擦轮的射速转换函数
  * @param bullet_speed 目标弹速 (m/s)
@@ -234,27 +255,28 @@ void Get_Shoot_Mode(void)
     switch (gimbal_mode)
     {
     case GIMBAL_MODE_SEMIAUTO:
-        if (rc_data->mouse.press_l)
+        if (FRIC_flag)
         {
-            shoot_mode = SHOOT_MODE_FIRE;
-        }
-        else if (rc_data->mouse.press_r)
-        {
-            if (pc_mode == PC_SHOOT_FIRE)
+            shoot_mode = SHOOT_MODE_READY;
+            if (rc_data->mouse.press_l)
             {
                 shoot_mode = SHOOT_MODE_FIRE;
             }
-            else if (pc_mode == PC_SHOOT_AIM)
+            else if (rc_data->mouse.press_r)
             {
-                shoot_mode = SHOOT_MODE_READY;
-            }
-            else
-            {
-                shoot_mode = SHOOT_MODE_READY;
+
+                if (pc_mode == PC_SHOOT_FIRE)
+                {
+                    shoot_mode = SHOOT_MODE_FIRE;
+                }
+                else if (pc_mode == PC_SHOOT_AIM)
+                {
+                    shoot_mode = SHOOT_MODE_READY;
+                }
             }
         }
         else
-            shoot_mode = SHOOT_MODE_READY;
+            shoot_mode = SHOOT_MODE_STOP;
         break;
 
     case GIMBAL_MODE_AUTO:
@@ -276,6 +298,10 @@ void Get_Shoot_Mode(void)
         else if (switch_is_mid(rc_data->rc.switch_right))
         {
             shoot_mode = SHOOT_MODE_READY;
+        }
+        else
+        {
+            shoot_mode = SHOOT_MODE_STOP;
         }
         break;
 
@@ -311,12 +337,20 @@ void Shoot_State_Machine(void)
         init_count++;
         shoot_mode = SHOOT_MODE_STOP;
     }
+    Shoot_Ready();
+
     if (gimbal_mode)
     {
         switch (shoot_mode)
         {
         case SHOOT_MODE_FIRE:
-            uart2_tx_message.shoot_mode = 2;
+            if (fire_ready_flag == 1)
+            {
+                uart2_tx_message.shoot_mode = 2;
+            }
+            else
+                uart2_tx_message.shoot_mode = 1;
+
             Shoot_Enable();
             Shoot_SetAll(FRICTION_MOTOR_RPM);
             break;
@@ -328,11 +362,13 @@ void Shoot_State_Machine(void)
             break;
 
         case SHOOT_MODE_STOP:
+            fric_pretime_count = 0;
             uart2_tx_message.shoot_mode = 0;
             Shoot_Stop();
             break;
 
         default:
+            fric_pretime_count = 0;
             uart2_tx_message.shoot_mode = 0;
             Shoot_Stop();
             break;

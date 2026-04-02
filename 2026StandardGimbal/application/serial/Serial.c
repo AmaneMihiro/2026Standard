@@ -74,17 +74,14 @@ void NV_UnPack_Data_ROS2(uint8_t *receive_buf, nv_receive_packet_t *receive_pack
 void VS_UnPack_Data_ROS2(uint8_t *receive_buf, vs_receive_packet_t *receive_packet, uint16_t Len)
 {
     // /*Len为原始接收数据长度，如果要排除末尾的换行符，则需要减去最后一位数据包*/
-    // uint16_t actual_Len = Len - 1;
-    if (receive_buf[0] == 'S' && receive_buf[1] == 'P')
+    // uint16_t actual_Len = Len - 1
+    uint16_t w_expected;
+    w_expected = Get_CRC16_Check_Sum(receive_buf, Len - 2, 0xFFFF);
+    if ((w_expected & 0xff) == receive_buf[Len - 2] && ((w_expected >> 8) & 0xff) == receive_buf[Len - 1]) // CRC检验出了问题
     {
-        uint16_t w_expected;
-        w_expected = Get_CRC16_Check_Sum(receive_buf, Len - 2, 0xFFFF);
-        if ((w_expected & 0xff) == receive_buf[Len - 2] && ((w_expected >> 8) & 0xff) == receive_buf[Len - 1]) // CRC检验出了问题
-        {
-            memcpy(receive_packet, receive_buf, Len);
-        }
+        memcpy(receive_packet, receive_buf, Len);
     }
-    //memset(receive_buf, 0, Len);
+    // memset(receive_buf, 0, Len);
 }
 
 /**
@@ -180,11 +177,6 @@ void NV_Send_Packet_Init(nv_send_packet_t *send_packet)
     send_packet->header = 0x5A; // 帧头赋值
     send_packet->imu_pitch = INS.Pitch;
     send_packet->imu_yaw = INS.Yaw;
-    // send_packet->roll = INS.Roll;
-    // send_packet->timestamp = 0;
-//    send_packet->robot_hp = 0;
-//    send_packet->game_time = 0;
-     //send_packet->checksum = 0;
 }
 
 /* 初始化发送给上位机的视觉数据包 */
@@ -204,17 +196,19 @@ void VS_Send_Packet_Init(vs_send_packet_t *send_packet)
     send_packet->pitch_vel = 0.0f;
     send_packet->bullet_speed = 0;
     send_packet->bullet_count = 0;
-
+    send_packet->is_play = 0;
+    send_packet->game_time = 0.0f;
+    send_packet->enemy_score = 0.0f;
+    send_packet->own_score = 0.0f;
+    send_packet->own_hp[0] = 0.0f;
+    send_packet->own_hp[1] = 0.0f;
+    send_packet->own_hp[2] = 0.0f;
+    send_packet->event_data = 0;
 }
 
 /* 初始化接收自上位机的视觉数据包 */
 void VS_Receive_Packet_Init(vs_receive_packet_t *receive_packet)
 {
-    // receive_packet->frame_header.sof = 0xA6;
-    // receive_packet->frame_header.crc8 = 0;
-    // receive_packet->input_data.shoot_yaw = 0;
-    // receive_packet->input_data.shoot_pitch = 0;
-    // receive_packet->input_data.fire = 0;
 
     receive_packet->head[0] = 'S';
     receive_packet->head[1] = 'P';
@@ -225,6 +219,10 @@ void VS_Receive_Packet_Init(vs_receive_packet_t *receive_packet)
     receive_packet->pitch = 0.0f;
     receive_packet->pitch_vel = 0.0f;
     receive_packet->pitch_acc = 0.0f;
+    receive_packet->vx = 0.0f;
+    receive_packet->vy = 0.0f;
+    receive_packet->posture = 0;
+    receive_packet->circle = 0;
     receive_packet->crc16 = 0;
 }
 

@@ -43,7 +43,7 @@ typedef enum
 	DM_ERROR_NONE            = 0x00U,
 	DM_MOTOR_BLOCKED_ERROR   = 0x01U,
 	DM_MOTOR_LOST_ERROR      = 0x02U,
-	DM_MOTOR_SUPERLOAD_ERROR = 0x03U,
+	DM_MOTOR_SUPERLOAD_ERROR = 0x04U,
 } DM_error_e;
 
 typedef struct

@@ -52,6 +52,7 @@ extern DJI_motor_instance_t *chassis_motor_direct_4;
 extern DM_motor_t *gimbal_motor_yaw;
 
 extern float target_angle_yaw;
+extern float target_angle_yaw_temp;
 extern uint8_t chassis_mode;
 extern float target_speed;
 extern float yaw_zero_offset;
