@@ -8,29 +8,33 @@
 #include "usart.h"
 #include "bsp_usart.h"
 
+#include "referee_protocol.h"
 
 typedef struct
 {
-    uint32_t revive_confirm : 1;   // bit 0：确认复活
-    uint32_t exch_revive : 1;      // bit 1：确认兑换立即复活
-    uint32_t exch_bullet : 11;     // bit 2-12：兑换发弹量值 (单调递增)
-    uint32_t exch_bullet_cnt : 4;  // bit 13-16：远程兑换发弹量次数 (单调递增)
-    uint32_t exch_blood_cnt : 4;   // bit 17-20：远程兑换血量次数 (单调递增)
-    uint32_t posture : 2;          // bit 21-22：姿态 (1进攻, 2防御, 3移动)
-    uint32_t buff_confirm : 1;     // bit 23：确认使能量机关进入正在激活状态
-    uint32_t reserved : 8;         // bit 24-31：保留位
-}__attribute__((packed))sentry_msg_t;
+    uint32_t revive_confirm  : 1;  // bit 0
+    uint32_t exch_revive     : 1;  // bit 1
+    uint32_t exch_bullet     : 11; // bit 2-12
+    uint32_t exch_bullet_cnt : 4;  // bit 13-16
+    uint32_t exch_blood_cnt  : 4;  // bit 17-20
+    uint32_t posture         : 2;  // bit 21-22 (数值1-3)姿态 (1进攻, 2防御, 3移动)
+    uint32_t buff_confirm    : 1;  // bit 23
+    uint32_t reserved        : 8;  // bit 24-31
+} __attribute__((packed)) sentry_msg_t;
+
+
+
+
+// typedef struct {
+//     uint8_t SOF;
+//     uint16_t length;
+//     uint8_t seq, crc8;
+// }__attribute__((packed))referee_frame_header_t;
 
 typedef struct {
-    uint8_t SOF;
-    uint16_t length;
-    uint8_t seq, crc8;
-}__attribute__((packed))referee_frame_header_t;
-
-typedef struct {
-    referee_frame_header_t header;
+    xFrameHeader header;
     uint16_t cmd_id;   //主id
-    uint16_t sub_id;   //子id
+    uint16_t data_cmd_id;   //子id
     uint16_t send_id, recv_id;  //发送者ID和接收者ID，裁判系统会根据这个字段来区分不同的机器人或模块
     uint32_t sentry_cmd;
     uint16_t crc16;
@@ -77,7 +81,7 @@ typedef struct
 
 extern USART_t *referee_usart_instance;
 
-extern uint8_t seq;
+//extern uint8_t seq;
 
 extern sentry_msg_t sentry_msg; // 哨兵指令结构体实例
 extern sentry_get_info_t sentry_get_info; // 哨兵获取信息结构体实例

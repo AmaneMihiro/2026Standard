@@ -35,6 +35,7 @@ typedef enum
 {
     S_NORMAL,
     S_REVERSING,
+    S_LOCKED,
 }FeederState_e;
 
 extern uint8_t shoot_mode;

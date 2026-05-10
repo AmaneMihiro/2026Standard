@@ -97,7 +97,7 @@ typedef enum
   ID_radar_mark_data = 0x020C,         // 雷达标记进度
   ID_sentry_info = 0x020D,             // 哨兵信息
   ID_radar_info = 0x020E,              // 雷达信息
-  ID_student_interactive = 0x0301,     // 机器人间交互数据
+  ID_student_interactive = 0x0301,     // 机器人间交互数据   //0x0301
   ID_custom_controller_robot = 0x0302, // 自定义控制器与机器人交互
   ID_map_command = 0x0303,             // 小地图交互数据（选手端下发）
   ID_custom_client_robot = 0x0310,     // 机器人->自定义客户端
@@ -412,7 +412,7 @@ typedef enum
   UI_Data_ID_Draw5 = 0x103,
   UI_Data_ID_Draw7 = 0x104,
   UI_Data_ID_DrawChar = 0x110,
-  Sentry_Msg_ID = 0x0120,
+  Sentry_Msg_ID = 0x0120,    //0x0120
   /* 自定义交互数据部分 */
   Communicate_Data_ID = 0x0200,
 

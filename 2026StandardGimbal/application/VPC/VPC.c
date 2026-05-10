@@ -55,7 +55,7 @@ void VPC_UpdatePackets(void)
   vs_aim_packet_to_nuc.tar_positon_y = uart2_rx_message.tar_positon_y;
 
   vs_aim_packet_to_nuc.own_hp = uart2_rx_message.own_hp;                 // 己方血量
-  vs_aim_packet_to_nuc.outpost_HP = uart2_rx_message.outpost_HP;         // 己方前哨站血量
+  vs_aim_packet_to_nuc.outpost_hp = uart2_rx_message.outpost_HP;         // 己方前哨站血量
   vs_aim_packet_to_nuc.outpost_status = uart2_rx_message.outpost_status; // 前哨站占领状态
   vs_aim_packet_to_nuc.fort_status = uart2_rx_message.fort_status;       // 堡垒占领状态
   vs_aim_packet_to_nuc.bullet_speed = BULLET_V;                          // 现在为设置弹速，不是实际弹速

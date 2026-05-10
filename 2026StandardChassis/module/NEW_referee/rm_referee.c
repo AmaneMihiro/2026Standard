@@ -177,6 +177,6 @@ void Referee_Send(uint8_t *send, uint16_t tx_len)
 		USART_Send(referee_usart_instance, tx_buffer, tx_len, USART_TRANSFER_DMA);
 		//USART_Send(referee_usart_instance, send, tx_len, USART_TRANSFER_DMA);
 	//}
-	//osDelay(40);
+	osDelay(40);
 }
 #endif

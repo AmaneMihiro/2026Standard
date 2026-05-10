@@ -25,7 +25,7 @@
 #include "referee_task.h"
 #include "robot_frame_init.h"
 
-#define UI_TASK_PERIOD 100 // ms
+#define UI_TASK_PERIOD  50 // ms
 
 #if INCLUDE_uxTaskGetStackHighWaterMark
 uint32_t ui_diff;

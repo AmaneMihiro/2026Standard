@@ -28,18 +28,28 @@ FeederState_e currentState = S_NORMAL;
 #define REVERSE_RADS -12.0f         // 反转速度
 #define SHOOT_TIME_STALL 900        // 堵转时间
 #define SHOOT_TIME_REVERSING 950    // 反转时间
-#define SHOOT_TIME_STOP 1200        // 停转时间
+#define SHOOT_TIME_STOP 1200        // 停转时间(1.2s)
+#define MAX_REVERSE_ATTEMPTS 3      // 最大反转尝试次数
+#define NORMAL_RESET_TIME 2000      // 正常运转多少周期后清零尝试次数 (2s)
+#define BLOCKED_COOLDOWN 6000       // 完全堵死后冷却时间 (6s)
+
 /*热量控制参数*/
-#define HEAT_SAFETY_MARGIN_HIGH 30.0f // 热量上限安全余量
+#define HEAT_SAFETY_MARGIN_HIGH 80.0f // 热量上限安全余量
 #define HEAT_SAFETY_MARGIN_LOW 90.0f  // 热量下限安全余量
+#define FIRE_EXP 15.0f                // 最高发射弹频
+#define FIRE_NORMAL 10.0f             // 正常发射弹频
+#define FIRE_WEAK 5.0f                // 热量过高时的发射弹频
+#define FIRE_STOP 0.0f                // 停止发射
 
 float shoot_hz = 10.0f; // 射击频率（发/秒）
 uint16_t target_shoot_rads = 0;
-uint16_t stall_cnt = 0;          // 堵转时间计数
-uint16_t reverse_cnt = 0;        // 反转时间计数
-uint16_t stop_cnt = 0;           // 停止计数
-static bool heat_locked = false; // 热量锁定标志，初始为false,表示未锁定
-
+static int stall_cnt = 0;        // 堵转时间计数
+static int reverse_cnt = 0;      // 反转时间计数
+static int stop_cnt = 0;         // 停止计数
+static int lock_cnt = 0;         // 锁定计数，记录完全堵死后经过的时间
+static int normal_cnt = 0;       // 正常计数
+static int attempt_cnt = 0;      // 尝试恢复计数
+static bool heat_locked = false; // 重启开火
 PID_t chassis_2006_speed_pid = {
     .kp = 80.0f,
     .ki = 15.0f,
@@ -150,51 +160,100 @@ static inline float BulletFreq_to_RadS(float hz) // inline 直接调用内容，
 //        motor->last_shot_angle -= lost_bullet * ANGLE_PER_BULLET;
 //    }
 // }
-
+/*
+ * @brief 更新过热状态，根据当前热量与上限的关系设置 heat_locked 标志
+ *        当热量接近上限时锁定射击，直到热量降到安全余量以下才解锁
+ * @note 该函数应在射击状态机中周期调用，以实时监控热量状态
+ */
 void Update_OverHeated(void)
 {
-    float heat_now = referee_outer_info->PowerHeatData.shooter_17mm_barrel_heat;       // 当前热量
-    float heat_limit = referee_outer_info->RobotPerformance.shooter_barrel_heat_limit; // 热量上限
-
-    if (heat_now > heat_limit - HEAT_SAFETY_MARGIN_HIGH)
+     float current_heat = referee_outer_info->PowerHeatData.shooter_17mm_barrel_heat;   // 当前热量
+     float heat_limit = referee_outer_info->RobotPerformance.shooter_barrel_heat_limit; // 热量上限
+     float heat_ratio = current_heat / heat_limit;                                      // 当前热量占上限的比例
+    if (heat_ratio >= 0.85f) // 如果热量已经达到或超过上限，强制锁定
     {
-        heat_locked = true; // 锁定射击
+        heat_locked = true;
+        shoot_hz = FIRE_STOP; // 热量过高超过安全区时停止射击
     }
-    else if (heat_now < heat_limit - HEAT_SAFETY_MARGIN_LOW) // 当热量降到安全余量以下时解除锁定
+    else if (0.5f < heat_ratio && heat_ratio < 0.85f) // 热量较高但未超过上限，降低射频
     {
-        heat_locked = false; // 解锁射击
+        heat_locked = false;
+        shoot_hz = FIRE_WEAK; // 热量过高但未超过安全区时降低射击频率
     }
+    else // 热量较低，正常射击
+    {
+        heat_locked = false;
+        shoot_hz = FIRE_NORMAL; // 热量较低时使用正常射击频率
+    }
+    // if (heat_now > heat_limit - HEAT_SAFETY_MARGIN_HIGH)
+    // {
+    //     heat_locked = true; // 锁定射击
+    // }
+    // else if (heat_now < heat_limit - HEAT_SAFETY_MARGIN_LOW) // 当热量降到安全余量以下时解除锁定
+    // {
+    //     heat_locked = false; // 解锁射击
+    // }
 }
 
+/*
+ * @brief 堵转控制逻辑，根据当前状态和传感器数据决定目标转速
+ * @param target_rads 正常情况下的目标转速（rad/s）
+ * @return float 实际应用的目标转速，可能被堵转控制逻辑覆盖
+ * @note 该函数在射击模式下周期调用，实时调整目标转速以应对堵转情况
+ */
 float Stall_Control_Loop(float target_rads)
 {
     float shoot_speed = chassis_shoot_motor->measure.speed;
     float shoot_current = chassis_shoot_motor->measure.real_current;
     // bool reverse_first = 1;
-    if (currentState == S_NORMAL)
+
+    switch (currentState)
     {
+    case S_NORMAL:
         // 1. 堵转检测
         if (fabsf(shoot_speed) < SHOOT_SPEED_STALL && fabsf(shoot_current) > SHOOT_CURRENT_STALL)
         {
             stall_cnt++;
             if (stall_cnt >= SHOOT_TIME_STALL)
             {
+                attempt_cnt++;
+
+                // 超过最大尝试次数 → 进入完全堵死状态
+                if (attempt_cnt >= MAX_REVERSE_ATTEMPTS)
+                {
+                    currentState = S_LOCKED;
+                    stall_cnt = 0;
+                    lock_cnt = 0;
+                    PID_Clear(chassis_shoot_motor->motor_controller.speed_PID);
+                    Shoot_Stop(); // 关闭电机
+                    return 0.0f;  // 完全停止
+                }
+
                 // 确认堵转，切换到反转状态
                 currentState = S_REVERSING;
                 stall_cnt = 0;
                 reverse_cnt = 0;
                 stop_cnt = 0;
                 PID_Clear(chassis_shoot_motor->motor_controller.speed_PID);
+                Shoot_Stop();
+                return 0.0f;
             }
         }
         else
         {
             // 正常状态，堵转计数器清零
             stall_cnt = 0;
+            normal_cnt++;
+            // 长时间无堵转，复位尝试次数（异物可能已排出）
+            if (normal_cnt >= NORMAL_RESET_TIME)
+            {
+                attempt_cnt = 0;
+                normal_cnt = 0;
+            }
         }
-    }
-    else if (currentState == S_REVERSING)
-    {
+        return target_rads; // 正常状态，原样返回目标转速
+        break;
+    case S_REVERSING:
         if (stop_cnt <= SHOOT_TIME_STOP)
         {
             // 保持停止，让拨弹盘自然泄力回转
@@ -208,15 +267,36 @@ float Stall_Control_Loop(float target_rads)
         if (reverse_cnt >= SHOOT_TIME_REVERSING)
         {
             currentState = S_NORMAL;
-
+            normal_cnt = 0;
             // 调用PID清除积分函数，防止恢复正转时猛冲
             PID_Clear(chassis_shoot_motor->motor_controller.speed_PID);
             return target_rads;
         }
         return REVERSE_RADS; // 处于反转状态，强制覆盖目标转速
-    }
 
-    return target_rads; // 正常状态，原样返回目标转速
+    case S_LOCKED:
+        // 完全堵死状态：强制停止，保护电机
+        Shoot_Stop();
+
+        lock_cnt++;
+        if (lock_cnt >= BLOCKED_COOLDOWN)
+        {
+            // 复位所有状态，尝试重新工作
+            attempt_cnt = 0;
+            normal_cnt = 0;
+            lock_cnt = 0;
+            stall_cnt = 0;
+            PID_Clear(chassis_shoot_motor->motor_controller.speed_PID);
+            currentState = S_NORMAL;
+            return target_rads;
+        }
+        return 0.0f; // 冷却中，保持停机
+
+    default:
+        Shoot_Stop();
+        return 0.0f; // 锁定状态，目标转速为0
+        break;
+    }
 }
 
 void Shoot_State_Machine(void)

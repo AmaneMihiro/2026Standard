@@ -7,7 +7,7 @@
 #include "rs485.h"
 #include "CRC.h"
 
-uint8_t seq = 0;
+uint32_t seq = 0;
 uint16_t ui_self_id = 107; // 红方哨兵7，蓝方哨兵107
 // 为了使消息能够发送给裁判系统，必须要自定义ui_self_id变量（该变量也可以使用其他代码从裁判系统读取后由程序修改）
 
@@ -16,16 +16,22 @@ sentry_cmd_t sentinel_decision_out;  // 哨兵自主决策通信指令整体结�
 sentry_get_info_t sentry_get_info;   // 哨兵获取信息结构体实例
 eventdata_get_info_t event_get_info; // 场地事件数据获取结构体实例
 
-void Sentry_Msg_Update(sentry_msg_t *msg)
+void Sentry_Msg_Update(sentry_msg_t *msg, sentry_get_info_t *get_info)
 {
-
-   msg->revive_confirm = 1;                 // 确认复活
-   msg->exch_revive = 0;                    // 兑换立即复活
-   msg->exch_bullet = 0;                    // 设置发弹量
-   msg->exch_bullet_cnt = 0;                // 请求远程兑换发弹量次数
-   msg->exch_blood_cnt = 0;                 // 请求远程兑换血量次数
+   if (get_info->can_free_revive)
+   {
+      msg->revive_confirm = 1; // 确认复活
+   }
+   else
+   {
+      msg->revive_confirm = 0; // 确认不复活
+   }
+   msg->exch_revive = 0;     // 兑换立即复活
+   msg->exch_bullet = 0;     // 设置发弹量
+   msg->exch_bullet_cnt = 0; // 请求远程兑换发弹量次数
+   msg->exch_blood_cnt = 0;  // 请求远程兑换血量次数
    msg->posture = uart2_rx_message.posture; // 设置姿态
-   msg->buff_confirm = 0;                   // 确认使能量机关进入正在激活状态
+   msg->buff_confirm = 0;    // 确认使能量机关进入正在激活状态
 }
 
 /* 32位指令如下：
@@ -58,17 +64,18 @@ void Sentry_Send_Decision(sentry_msg_t *msg)
    static sentry_cmd_t sentinel_decision;
    uint16_t temp_datalength = Interactive_Data_LEN_Head + Sentry_Msg_LEN; // 计算交互数据长度
    sentinel_decision.header.SOF = 0xA5;
-   sentinel_decision.header.length = temp_datalength;
-   sentinel_decision.header.seq = seq;
-   sentinel_decision.header.crc8 = Get_CRC8_Check_Sum((uint8_t *)&sentinel_decision, LEN_CRC8, 0xFF);
+   sentinel_decision.header.DataLength = temp_datalength;
+   sentinel_decision.header.Seq = seq;
+   sentinel_decision.header.CRC8 = Get_CRC8_Check_Sum((uint8_t *)&sentinel_decision, LEN_CRC8, 0xFF);
    sentinel_decision.cmd_id = ID_student_interactive; // 机器人数据交互主ID
-   sentinel_decision.sub_id = Sentry_Msg_ID;          // 哨兵指令子ID
-   sentinel_decision.send_id = referee_outer_info->RobotPerformance.robot_id;//ui_self_id;
+   sentinel_decision.data_cmd_id = Sentry_Msg_ID;     // 哨兵指令子ID
+   sentinel_decision.send_id = ui_self_id;
    sentinel_decision.recv_id = 0x8080; // 给裁判系统服务器
    // 哨兵补充结构体对所需指令设置--uint32_t sentry_cmd
    Sentry_Cmd_Pack(&sentinel_decision, msg); // 更新Pack据到sentry_cmd字段
    // msg_cmd->sentry_cmd = *(uint32_t *)&sentry_msg; //设置对应指令位
    sentinel_decision.crc16 = Get_CRC16_Check_Sum((uint8_t *)&sentinel_decision, LEN_HEADER + LEN_CMDID + temp_datalength, 0xFFFF);
+   sentinel_decision_out = sentinel_decision;
    Referee_Send((uint8_t *)&sentinel_decision, LEN_HEADER + LEN_CMDID + temp_datalength + LEN_TAIL);
    seq++;
 }
@@ -76,7 +83,7 @@ void Sentry_Send_Decision(sentry_msg_t *msg)
 // 发送数据给裁判系统的函数，调用该函数即可将数据发送给裁判系统
 void Sentrycmd_To_Referee()
 {
-   Sentry_Msg_Update(&sentry_msg); // 根据实际情况更新sentry_msg的字段值
+   Sentry_Msg_Update(&sentry_msg, &sentry_get_info); // 根据实际情况更新sentry_msg的字段值
    Sentry_Send_Decision(&sentry_msg);
 }
 
@@ -129,7 +136,6 @@ void Referee_Data_Update() // 更新要传给上位机的裁判系统数据
 {
    uart2_tx_message.game_time = referee_outer_info->GameState.stage_remain_time;       // 获取当前阶段剩余时间
    uart2_tx_message.is_play = referee_outer_info->GameState.game_progress;             // 当前比赛阶段
-   uart2_tx_message.bullet_allowance = referee_outer_info->ProjectileAllowance.projectile_allowance_17mm; // 获取允许发弹量
    uart2_tx_message.own_hp = referee_outer_info->RobotPerformance.current_HP;          // 获取自身机器人HP
    uart2_tx_message.outpost_HP = referee_outer_info->GameRobotHP.ally_outpost_HP;      // 获取前哨站HP
    uart2_tx_message.outpost_status = event_get_info.outpost_status;                    // 获取前哨站占领状态
