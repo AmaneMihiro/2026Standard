@@ -86,7 +86,7 @@ extern USART_t *referee_usart_instance;
 extern sentry_msg_t sentry_msg; // 哨兵指令结构体实例
 extern sentry_get_info_t sentry_get_info; // 哨兵获取信息结构体实例
 extern eventdata_get_info_t event_get_info; // 场地事件数据获取结构体实例
-
+extern uint8_t post_test;
 extern void Sentrycmd_To_Referee();
 extern void Sentry_Send_Decision(sentry_msg_t *msg);
 extern void Referee_Data_Update();

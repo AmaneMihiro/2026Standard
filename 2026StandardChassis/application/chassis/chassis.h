@@ -63,5 +63,6 @@ void Chassis_Stop(void);
 void Chassis_Resolving(float x_speed, float y_speed, float omega_speed, float gimbal_angle_yaw_offset);
 float Chassis_Get_Actual_Omega(void);
 void Chassis_State_Machine(void);
+float Chassis_Alignment(void);
 
 #endif /* __CHASSIS_H__ */

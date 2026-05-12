@@ -90,7 +90,7 @@ static void Gimbal_Task(void *argument)
     {
         // uint32_t Last_time = DWT->CYCCNT;
 
-         roll = INS.Roll;
+         //roll = INS.Roll;
         // AAA = gimbal_motor_pitch->measure.rad;
 
         //    gimbal_motor_pitch->motor_controller.speed_PID->kp = SP;

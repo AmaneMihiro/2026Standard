@@ -16,7 +16,7 @@
 #include "rm_referee.h"
 #include "referee_task.h"
 #include "stdbool.h"
-
+#include "sentry_info.h"
 FeederState_e currentState = S_NORMAL;
 
 /*拨弹盘物理参数*/
@@ -180,10 +180,10 @@ void Update_OverHeated(void)
         heat_locked = false;
         shoot_hz = FIRE_WEAK; // 热量过高但未超过安全区时降低射击频率
     }
-    else // 热量较低，正常射击
+    else if(heat_ratio <=0.5f && sentry_get_info.posture == 1)// 热量较低，且为进攻姿态
     {
         heat_locked = false;
-        shoot_hz = FIRE_NORMAL; // 热量较低时使用正常射击频率
+        shoot_hz = FIRE_EXP; // 热量较低时使用正常射击频率
     }
     // if (heat_now > heat_limit - HEAT_SAFETY_MARGIN_HIGH)
     // {

@@ -281,7 +281,8 @@ void Get_Shoot_Mode(void)
         break;
 
     case GIMBAL_MODE_AUTO:
-        if (switch_is_up(rc_data->rc.switch_right))
+        if ((switch_is_up(rc_data->rc.switch_right)) || 
+        (switch_is_down(rc_data->rc.switch_right) && uart2_rx_message.is_play ==4))//比赛模式下，开始比赛后再开启发射机构
         {
             if (pc_mode == PC_SHOOT_FIRE)
             {

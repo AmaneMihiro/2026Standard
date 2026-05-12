@@ -9,6 +9,7 @@
 
 uint32_t seq = 0;
 uint16_t ui_self_id = 107; // 红方哨兵7，蓝方哨兵107
+uint8_t post_test = 3;
 // 为了使消息能够发送给裁判系统，必须要自定义ui_self_id变量（该变量也可以使用其他代码从裁判系统读取后由程序修改）
 
 sentry_msg_t sentry_msg;             // 哨兵具体指令结构体实例
@@ -26,12 +27,12 @@ void Sentry_Msg_Update(sentry_msg_t *msg, sentry_get_info_t *get_info)
    {
       msg->revive_confirm = 0; // 确认不复活
    }
-   msg->exch_revive = 0;     // 兑换立即复活
-   msg->exch_bullet = 0;     // 设置发弹量
-   msg->exch_bullet_cnt = 0; // 请求远程兑换发弹量次数
-   msg->exch_blood_cnt = 0;  // 请求远程兑换血量次数
+   msg->exch_revive = 0;                    // 兑换立即复活
+   msg->exch_bullet = 0;                    // 设置发弹量
+   msg->exch_bullet_cnt = 0;                // 请求远程兑换发弹量次数
+   msg->exch_blood_cnt = 0;                 // 请求远程兑换血量次数
    msg->posture = uart2_rx_message.posture; // 设置姿态
-   msg->buff_confirm = 0;    // 确认使能量机关进入正在激活状态
+   msg->buff_confirm = 0;                   // 确认使能量机关进入正在激活状态
 }
 
 /* 32位指令如下：
@@ -144,4 +145,5 @@ void Referee_Data_Update() // 更新要传给上位机的裁判系统数据
    uart2_tx_message.position_y = referee_outer_info->GameRobotPos.y;                   // 获取机器人位置y
    uart2_tx_message.tar_position_x = referee_outer_info->MapCommand.target_position_x; // 目标位置x（半自动模式使用）
    uart2_tx_message.tar_position_y = referee_outer_info->MapCommand.target_position_y; // 目标位置y（半自动模式使用）
+   uart2_tx_message.bullet_allowance = referee_outer_info->ProjectileAllowance.projectile_allowance_17mm;
 }

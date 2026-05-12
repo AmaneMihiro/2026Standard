@@ -15,7 +15,7 @@
 
 #define TARGET_STEP_PITCH_AUTO 0.0003f
 #define TARGET_STEP_PITCH_MANUAL 0.0015f
-#define PITCH_DOWN_LIMIT 0.35f
+#define PITCH_DOWN_LIMIT 0.30f
 #define PITCH_UP_LIMIT -0.45f
 #define RC_SENSITIVITY_PITCH 0.0000025f // 遥控器控制的pitch角速度灵敏度
 #define RC_SENSITIVITY_YAW 0.00002f     // 遥控器控制的yaw角速度灵敏度
@@ -382,7 +382,7 @@ float Get_Target_Oemga_Speed(uint8_t mode)
         break;
 
     case GIMBAL_MODE_AUTO:
-        if (vs_aim_packet_from_nuc.circle == 1)
+        if (vs_aim_packet_from_nuc.circle == 1 && vs_aim_packet_from_nuc.align == 0) // 开启小陀螺,且不需要对正
         {
             spin_time += dt;
             omega_speed = base_omega + range_omega * sinf(frequency * spin_time);
@@ -440,6 +440,7 @@ void Chassis_Control(void)
     uart2_tx_message.INS_Gyro_Z = INS.Gyro[IMU_Z];
     uart2_tx_message.target_omega_speed = Get_Target_Oemga_Speed(gimbal_mode);
     uart2_tx_message.posture = vs_aim_packet_from_nuc.posture;
+    uart2_tx_message.align_flag = vs_aim_packet_from_nuc.align; 
 }
 
 float Delta_Target_Angle_Control(float pitch_step)
@@ -560,9 +561,11 @@ void Gimbal_State_Machine(void)
             if (auto_mode_last == 1 || auto_mode_last == 2)
                 {
                     scan_time = 0.0f;
+                    Digital_PID_Clear(&gimbal_pitch_angle_digital_pid);
+                    Digital_PID_Clear(&gimbal_pitch_speed_digital_pid);
                 }
             if (scan_ready_time > 1200)
-            { 
+            {  
                 target_angle_yaw -= SCAN_STEP_YAW;
                 scan_time += 0.005f;
                 target_angle_pitch = 0.25f * sinf(scan_time) - 0.02f;

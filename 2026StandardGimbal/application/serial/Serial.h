@@ -1,4 +1,4 @@
-/*
+ /*
  * @file		Serial.c/h
  * @brief		usb-CDC通信程序，用于上位机和stm32的通信，需配合上位机代码使用，现采用zy版本
  * @history
@@ -192,6 +192,7 @@ typedef struct
   uint8_t posture; // 姿态指令
   uint8_t circle;  // 旋转指令
   uint8_t scan;    // 扫描指令
+  uint8_t align;   //对正指令
   uint8_t reverse; // 预留位
   uint16_t crc16;  // 校验值
 } __attribute__((packed)) vs_receive_packet_t;

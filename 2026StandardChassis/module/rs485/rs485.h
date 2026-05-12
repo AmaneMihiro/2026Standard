@@ -37,6 +37,7 @@ typedef struct
     float target_omega_speed;
     float INS_yaw;
     float INS_Gyro_Z;
+    uint8_t align_flag;
     uint8_t posture;
     uint8_t frame_tailer;
     uint8_t check_sum;

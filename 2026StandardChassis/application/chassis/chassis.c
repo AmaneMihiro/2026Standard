@@ -59,6 +59,11 @@ float yaw_torque_val = 0.0f;
 
 uint8_t auto_mode = 0;
 uint8_t auto_mode_last = 0;
+
+uint8_t align_clear = 1;
+uint8_t normal_clear = 1;
+uint8_t align_complete = 0;
+uint16_t align_stable_cnt = 0;
 // int brake_timer = 0;
 Speed_Ramp_t chassis_x_speed_ramp = {
     .last_speed = 0.0f,
@@ -73,7 +78,7 @@ Speed_Ramp_t chassis_y_speed_ramp = {
 };
 
 PID_t chassis_3508_speed_pid = {
-    .kp = 75.0f,  // 10.0f
+    .kp = 75.0f, // 10.0f
     .ki = 0.15f, // 0.01f
     .kd = 0.0f,
     .output_limit = 10000.0f,
@@ -99,40 +104,51 @@ PID_t chassis_6020_speed_pid = {
     .dead_band = 0.0f,
 };
 
-//digital_PID_t chassis_yaw_angle_digital_pid = {
-//    .kp = 17.0f,
-//    .ki = 0.0f,
-//    .kd = 3.2f,
-//    .output_limit = 20.0f,
-//    .integral_limit = 0.0f, 
-//    .dead_band = 0.0f,
-//};
+// digital_PID_t chassis_yaw_angle_digital_pid = {
+//     .kp = 17.0f,
+//     .ki = 0.0f,
+//     .kd = 3.2f,
+//     .output_limit = 20.0f,
+//     .integral_limit = 0.0f,
+//     .dead_band = 0.0f,
+// };
 
-//digital_PID_t chassi s_yaw_speed_digital_pid = {
-//    .kp = 1.6f,
-//    .ki = 0.01f,
-//    .kd = 0.45f,
-//    .output_limit = 5.0f,
-//    .integral_limit = 0.0f,
-//    .dead_band = 0.0f,
-//};
+// digital_PID_t chassi s_yaw_speed_digital_pid = {
+//     .kp = 1.6f,
+//     .ki = 0.01f,
+//     .kd = 0.45f,
+//     .output_limit = 5.0f,
+//     .integral_limit = 0.0f,
+//     .dead_band = 0.0f,
+// };
+
+digital_PID_t chassis_alignment_pid = {
+    .Kp = 2.5f,
+    .Ki = 0.02f,
+    .Kd = 0.0f,
+    .Kf = 0.0f,
+    .output_max = 0.6f,
+    .integral_limit = 0.2f,
+    .dead_band = 0.01f,
+    .improve = PID_INTEGRAL_LIMIT,
+};
 
 PID_t gimbal_4310_angle_pid = {
     .kp = 17.0f,           // 15.0f,
     .ki = 0.0f,            // 0.0f,
-    .kd = 3.2f,            // 1.2f, 
+    .kd = 3.2f,            // 1.2f,
     .output_limit = 10.0f, // 20.0f,
     .integral_limit = 0.0f,
     .dead_band = 0.0f,
 };
- 
+
 PID_t gimbal_4310_speed_pid = {
     .kp = 1.6f,  // 1.5f,
-    .ki = 0.01f, //0.01f,
-    .kd = 0.45f, //20.0f,
+    .ki = 0.01f, // 0.01f,
+    .kd = 0.45f, // 20.0f,
     .kf = 25.0f,
-    .output_limit = 3.0f,//10.0f,
-    .integral_limit = 2.0f,//10.0f,
+    .output_limit = 3.0f,   // 10.0f,
+    .integral_limit = 2.0f, // 10.0f,
     .fout_limit = 5.0f,
     .dead_band = 0.0f,
 };
@@ -158,7 +174,7 @@ motor_init_config_t chassis_3508_init_1 = {
         .outer_loop_type = SPEED_LOOP,
         .close_loop_type = SPEED_LOOP,
 
-        .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
+        .motor_reverse_flag = MOTOR_DIRECTION_REVERSE,
         .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
 
         .angle_feedback_source = MOTOR_FEED,
@@ -199,7 +215,7 @@ motor_init_config_t chassis_3508_init_2 = {
         .outer_loop_type = SPEED_LOOP,
         .close_loop_type = SPEED_LOOP,
 
-        .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
+        .motor_reverse_flag = MOTOR_DIRECTION_REVERSE,
         .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
 
         .angle_feedback_source = MOTOR_FEED,
@@ -240,7 +256,7 @@ motor_init_config_t chassis_3508_init_3 = {
         .outer_loop_type = SPEED_LOOP,
         .close_loop_type = SPEED_LOOP,
 
-        .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
+        .motor_reverse_flag = MOTOR_DIRECTION_REVERSE,
         .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
 
         .angle_feedback_source = MOTOR_FEED,
@@ -281,7 +297,7 @@ motor_init_config_t chassis_3508_init_4 = {
         .outer_loop_type = SPEED_LOOP,
         .close_loop_type = SPEED_LOOP,
 
-        .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
+        .motor_reverse_flag = MOTOR_DIRECTION_REVERSE,
         .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
 
         .angle_feedback_source = MOTOR_FEED,
@@ -438,7 +454,7 @@ motor_init_config_t chassis_6020_init_4 = {
     .controller_setting_init_config = {
         .outer_loop_type = ANGLE_LOOP,
         .close_loop_type = ANGLE_AND_SPEED_LOOP,
-        .control_button  = POLYCYCLIC_LOOP_CONTROL,
+        .control_button = POLYCYCLIC_LOOP_CONTROL,
 
         .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
         .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
@@ -522,6 +538,8 @@ void Chassis_Init(void)
     chassis_motor_direct_4 = DJI_Motor_Init(&chassis_6020_init_4);
 
     gimbal_motor_yaw = DM_Motor_Init(&gimbal_4310_init);
+
+    Digital_PID_Clear(&chassis_alignment_pid);
 }
 
 void Chassis_Enable(void)
@@ -560,10 +578,10 @@ void Chassis_Stop(void)
 void Chassis_Resolving(float x_speed, float y_speed, float omega_speed, float gimbal_angle_yaw_offset)
 {
     // 舵向电机零点偏移
-    float chassis_motor_direct_zeropoint[4] = {CHASSIS_MOTOR_DIRECT_ZEROPOINT_1,
-                                               CHASSIS_MOTOR_DIRECT_ZEROPOINT_2,
-                                               CHASSIS_MOTOR_DIRECT_ZEROPOINT_3,
-                                               CHASSIS_MOTOR_DIRECT_ZEROPOINT_4};
+    float chassis_motor_direct_zeropoint[4] = {CHASSIS_MOTOR_DIRECT_ZEROPOINT_1 + PI,
+                                               CHASSIS_MOTOR_DIRECT_ZEROPOINT_2 + PI,
+                                               CHASSIS_MOTOR_DIRECT_ZEROPOINT_3 + PI,
+                                               CHASSIS_MOTOR_DIRECT_ZEROPOINT_4 + PI};
     // 电机实例数组
     DJI_motor_instance_t *chassis_motor_direct[4] = {chassis_motor_direct_1,
                                                      chassis_motor_direct_2,
@@ -611,17 +629,17 @@ void Chassis_Resolving(float x_speed, float y_speed, float omega_speed, float gi
             while (angle_diff < -PI)
                 angle_diff += 2 * PI;
 
-            // 90度优化：大角度时反转轮子
-            if (angle_diff > PI / 2)
-            {
-                angle_diff -= PI;
-                speed_magnitude = -speed_magnitude;
-            }
-            else if (angle_diff < -PI / 2)
-            {
-                angle_diff += PI;
-                speed_magnitude = -speed_magnitude;
-            }
+            // // 90度优化：大角度时反转轮子
+            // if (angle_diff > PI / 2)
+            // {
+            //     angle_diff -= PI;
+            //     speed_magnitude = -speed_magnitude;
+            // }
+            // else if (angle_diff < -PI / 2)
+            // {
+            //     angle_diff += PI;
+            //     speed_magnitude = -speed_magnitude;
+            // }
 
             // 目标角度和转速
             // 速度转换：m/s → rad/s
@@ -651,62 +669,47 @@ float Chassis_Get_Actual_Omega(void)
                                                     chassis_motor_drive_2,
                                                     chassis_motor_drive_3,
                                                     chassis_motor_drive_4};
-
     // 舵向电机零点偏移
     float chassis_motor_direct_zeropoint[4] = {CHASSIS_MOTOR_DIRECT_ZEROPOINT_1,
                                                CHASSIS_MOTOR_DIRECT_ZEROPOINT_2,
                                                CHASSIS_MOTOR_DIRECT_ZEROPOINT_3,
                                                CHASSIS_MOTOR_DIRECT_ZEROPOINT_4};
-
     DJI_motor_instance_t *chassis_motor_direct[4] = {chassis_motor_direct_1,
                                                      chassis_motor_direct_2,
                                                      chassis_motor_direct_3,
                                                      chassis_motor_direct_4};
-
     // 轮子位置角度：右前45°，右后-45°，左后-135°，左前135°
     float wheel_position_angle[4] = {PI / 4, -PI / 4, -3 * PI / 4, 3 * PI / 4};
-
     float omega_sum = 0.0f;
     int valid_count = 0;
-
     // 遍历四个轮子，计算每个轮子贡献的自旋角速度
     for (int i = 0; i < 4; i++)
     {
         // 获取电机反馈角速度 (rad/s)
         float motor_angular_velocity = chassis_motor_drive[i]->measure.speed;
-
         // 转换为轮子线速度 (m/s)
         // v = 电机角速度 / 减速比 × 轮子半径
         float wheel_speed = motor_angular_velocity / WHEEL_REDUCTION_RATIO * WHEEL_RADIUS;
-
         // 获取当前舵向角度
         float current_wheel_angle = chassis_motor_direct[i]->measure.rad - chassis_motor_direct_zeropoint[i];
-
         // 自旋方向系数（与正解算保持一致）
         float spin_direction = (i == 0 || i == 2) ? -1.0f : 1.0f;
-
         // 计算轮子速度在切向上的分量
         // 切向方向：垂直于轮子位置的径向方向
         float tangent_angle = wheel_position_angle[i] + PI / 2.0f; // 切向角度
-
         // 轮子速度在切向上的投影
         float vx = wheel_speed * cosf(current_wheel_angle);
         float vy = wheel_speed * sinf(current_wheel_angle);
-
         // 切向速度分量
         float v_tangent_x = -sinf(wheel_position_angle[i]);
         float v_tangent_y = cosf(wheel_position_angle[i]);
-
         // 速度在切向上的投影
         float tangential_speed = vx * v_tangent_x + vy * v_tangent_y;
-
         // 计算该轮子贡献的自旋角速度: omega = v_tangent / R
         float omega_wheel = spin_direction * tangential_speed / CHASSIS_RADIUS;
-
         omega_sum += omega_wheel;
         valid_count++;
     }
-
     // 返回四个轮子的平均自旋角速度
     if (valid_count > 0)
     {
@@ -716,6 +719,11 @@ float Chassis_Get_Actual_Omega(void)
     {
         return 0.0f;
     }
+}
+
+float Chassis_Alignment(void)
+{
+    return Digital_PID_Position(&chassis_alignment_pid, uart2_rx_message.target_y_speed, 0.0f);
 }
 
 /**
@@ -802,9 +810,72 @@ void Chassis_State_Machine(void)
     float target_x_speed = uart2_rx_message.target_x_speed;
     float target_y_speed = uart2_rx_message.target_y_speed;
     float target_omega_speed = uart2_rx_message.target_omega_speed;
-    yaw_angle_feedback = uart2_rx_message.INS_yaw;
-    yaw_speed_feedback = uart2_rx_message.INS_Gyro_Z;
     chassis_mode = uart2_rx_message.chassis_mode;
+    if (uart2_rx_message.align_flag && chassis_mode == CHASSIS_MODE_AUTO) // 编码器控制yaw位置归零
+    {
+
+        if (align_complete == 0)
+        {
+            target_x_speed = 0.0f;
+            target_y_speed = 0.0f;
+            target_omega_speed = 0.0f;
+            chassis_x_speed_ramp.last_speed = 0.0f;
+            chassis_y_speed_ramp.last_speed = 0.0f;
+        }
+
+        yaw_angle_feedback = gimbal_motor_yaw->receive_data.position;
+        yaw_speed_feedback = gimbal_motor_yaw->receive_data.velocity;
+
+        if (align_clear)
+        {
+            PID_Clear(gimbal_motor_yaw->motor_controller.angle_PID);
+            PID_Clear(gimbal_motor_yaw->motor_controller.speed_PID);
+            Digital_PID_Clear(&chassis_alignment_pid);
+            // 切换瞬间对齐目标到当前反馈，消除初始偏差
+            target_angle_yaw = yaw_angle_feedback;
+            target_angle_yaw_temp = target_angle_yaw;
+            align_stable_cnt = 0;
+            normal_clear = 1;
+            align_clear = 0;
+        }
+        target_angle_yaw = 0.0f;
+        // 阶段1：云台先归零；阶段2：云台到位后底盘自旋对正
+        if (fabsf(gimbal_motor_yaw->receive_data.position) < 0.05f)
+        {
+            target_omega_speed = Chassis_Alignment();
+            // 连续 N 个周期 vy 稳定在死区内才判定对正完成，防止首次进入误判
+            if (fabsf(target_omega_speed) < 1e-5f)
+            {
+                if (++align_stable_cnt > 500)//0.5s
+                {
+                    align_complete = 1;
+                    align_stable_cnt = 0;
+                }
+            }
+            else
+            {
+                align_stable_cnt = 0;
+            }
+        }
+    }
+    else // IMU控制yaw位置归零
+    {
+        align_complete = 0;
+        yaw_angle_feedback = uart2_rx_message.INS_yaw;
+        yaw_speed_feedback = uart2_rx_message.INS_Gyro_Z;
+
+        if (normal_clear)
+        {
+            PID_Clear(gimbal_motor_yaw->motor_controller.angle_PID);
+            PID_Clear(gimbal_motor_yaw->motor_controller.speed_PID);
+            Digital_PID_Clear(&chassis_alignment_pid);
+            // 切换瞬间对齐目标到当前反馈，消除初始偏差
+            target_angle_yaw = yaw_angle_feedback;
+            target_angle_yaw_temp = target_angle_yaw;
+            normal_clear = 0;
+            align_clear = 1;
+        }
+    }
 
     uart2_tx_message.yaw_vel = gimbal_motor_yaw->receive_data.velocity;
     // 速度斜坡控制
@@ -825,6 +896,7 @@ void Chassis_State_Machine(void)
     {
         // 只有在切换的这一秒，让目标等于当前，实现平滑启动
         target_angle_yaw_temp = target_angle_yaw;
+        Digital_PID_Clear(&chassis_alignment_pid);
     }
 
     switch (chassis_mode)
@@ -832,7 +904,7 @@ void Chassis_State_Machine(void)
     case CHASSIS_MODE_SEMIAUTO:
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, gimbal_motor_yaw->receive_data.position);
-        //target_angle_yaw_temp = Delta_Target_Angle_Control(0.0007f);
+        // target_angle_yaw_temp = Delta_Target_Angle_Control(0.0007f);
 
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
         DM_Motor_Control();
@@ -843,7 +915,7 @@ void Chassis_State_Machine(void)
 
         Chassis_Enable();
         Chassis_Resolving(target_x_speed, target_y_speed, target_omega_speed, gimbal_motor_yaw->receive_data.position);
-        //target_angle_yaw_temp = Delta_Target_Angle_Control(0.005f);
+        // target_angle_yaw_temp = Delta_Target_Angle_Control(0.005f);
 
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
         DM_Motor_Control();
@@ -864,7 +936,7 @@ void Chassis_State_Machine(void)
 
         DM_Motor_SetTar(gimbal_motor_yaw, target_angle_yaw);
 
-        if(gimbal_motor_yaw->error_code&DM_MOTOR_LOST_ERROR)
+        if (gimbal_motor_yaw->error_code & DM_MOTOR_LOST_ERROR)
         {
             PID_Clear(gimbal_motor_yaw->motor_controller.angle_PID);
             PID_Clear(gimbal_motor_yaw->motor_controller.speed_PID);
