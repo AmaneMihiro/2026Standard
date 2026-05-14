@@ -1072,7 +1072,6 @@ Image Symbol Table
     chassis_subscriber                       0x24001028   Data           4  chassis_task.o(.bss..L_MergedGlobals)
     .L_MergedGlobals                         0x24001038   Data          36  shoot.o(.bss..L_MergedGlobals)
     [Anonymous Symbol]                       0x24001038   Section        0  shoot.o(.bss..L_MergedGlobals)
-    heat_locked                              0x24001039   Data           1  shoot.o(.bss..L_MergedGlobals)
     Shoot_State_Machine.init_count           0x2400103c   Data           2  shoot.o(.bss..L_MergedGlobals)
     stall_cnt                                0x24001044   Data           4  shoot.o(.bss..L_MergedGlobals)
     attempt_cnt                              0x24001048   Data           4  shoot.o(.bss..L_MergedGlobals)
@@ -1681,7 +1680,7 @@ Image Symbol Table
     Sentrycmd_To_Referee                     0x08011771   Thumb Code   162  sentry_info.o(.text.Sentrycmd_To_Referee)
     Shoot_Enable                             0x08011819   Thumb Code    14  shoot.o(.text.Shoot_Enable)
     Shoot_Init                               0x08011829   Thumb Code    26  shoot.o(.text.Shoot_Init)
-    Shoot_State_Machine                      0x08011849   Thumb Code   296  shoot.o(.text.Shoot_State_Machine)
+    Shoot_State_Machine                      0x08011849   Thumb Code   292  shoot.o(.text.Shoot_State_Machine)
     Shoot_Task_Init                          0x080119a1   Thumb Code    92  shoot_task.o(.text.Shoot_Task_Init)
     Stall_Control_Loop                       0x08011a49   Thumb Code   392  shoot.o(.text.Stall_Control_Loop)
     StartDefaultTask                         0x08011bd1   Thumb Code   100  freertos.o(.text.StartDefaultTask)
@@ -2554,7 +2553,8 @@ Memory Map of the image
     0x08011826   0x08011826   0x00000002   PAD
     0x08011828   0x08011828   0x0000001a   Code   RO         3392    .text.Shoot_Init    shoot.o
     0x08011842   0x08011842   0x00000006   PAD
-    0x08011848   0x08011848   0x00000128   Code   RO         3402    .text.Shoot_State_Machine  shoot.o
+    0x08011848   0x08011848   0x00000124   Code   RO         3402    .text.Shoot_State_Machine  shoot.o
+    0x0801196c   0x0801196c   0x00000004   PAD
     0x08011970   0x08011970   0x0000002e   Code   RO         3418    .text.Shoot_Task    shoot_task.o
     0x0801199e   0x0801199e   0x00000002   PAD
     0x080119a0   0x080119a0   0x000000a8   Code   RO         3416    .text.Shoot_Task_Init  shoot_task.o

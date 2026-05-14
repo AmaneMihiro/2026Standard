@@ -31,7 +31,7 @@ FeederState_e currentState = S_NORMAL;
 #define SHOOT_TIME_STOP 1200        // 停转时间(1.2s)
 #define MAX_REVERSE_ATTEMPTS 3      // 最大反转尝试次数
 #define NORMAL_RESET_TIME 2000      // 正常运转多少周期后清零尝试次数 (2s)
-#define BLOCKED_COOLDOWN 6000       // 完全堵死后冷却时间 (6s)
+#define BLOCKED_COOLDOWN 10000       // 完全堵死后冷却时间 (10s)
 
 /*热量控制参数*/
 #define HEAT_SAFETY_MARGIN_HIGH 80.0f // 热量上限安全余量
@@ -180,10 +180,15 @@ void Update_OverHeated(void)
         heat_locked = false;
         shoot_hz = FIRE_WEAK; // 热量过高但未超过安全区时降低射击频率
     }
-    else if(heat_ratio <=0.5f && sentry_get_info.posture == 1)// 热量较低，且为进攻姿态
+    else if(heat_ratio <=0.5f && sentry_get_info.posture == 1)// 热量较低，且为进攻姿态时，进入爆炸开火
     {
         heat_locked = false;
         shoot_hz = FIRE_EXP; // 热量较低时使用正常射击频率
+    }
+    else
+    {
+        heat_locked = false;
+        shoot_hz = FIRE_NORMAL; // 热量较低时使用正常射击频率
     }
     // if (heat_now > heat_limit - HEAT_SAFETY_MARGIN_HIGH)
     // {

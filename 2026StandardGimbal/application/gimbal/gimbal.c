@@ -27,7 +27,7 @@
 // #define RC_SENSITIVITY_Y 0.002f // 遥控器Y轴速度灵敏度（靶车模式）
 
 // 扫描相关参数
-#define SCAN_STEP_YAW 0.002f
+#define SCAN_STEP_YAW 0.0015f
 
 #include "gimbal_task.h"
 #include "gimbal.h"
@@ -568,8 +568,8 @@ void Gimbal_State_Machine(void)
             {  
                 target_angle_yaw -= SCAN_STEP_YAW;
                 scan_time += 0.005f;
-                target_angle_pitch = 0.25f * sinf(scan_time) - 0.02f;
-                target_angle_pitch_temp = Delta_Target_Angle_Control(0.003f);
+                target_angle_pitch = 0.25f * sinf(scan_time) - 0.02f; 
+                target_angle_pitch_temp = Delta_Target_Angle_Control(0.005f);
                 //target_angle_pitch = target_angle_pitch_temp;
             }
             else

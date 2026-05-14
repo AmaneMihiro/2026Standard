@@ -33,7 +33,7 @@
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_1 6012.0f / 8192.0f * 2 * PI
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_2 2624.0f / 8192.0f * 2 * PI
 #define CHASSIS_MOTOR_DIRECT_ZEROPOINT_3 7429.0f / 8192.0f * 2 * PI
-#define CHASSIS_MOTOR_DIRECT_ZEROPOINT_4 6069.0f / 8192.0f * 2 * PI
+#define CHASSIS_MOTOR_DIRECT_ZEROPOINT_4 3383.0f / 8192.0f * 2 * PI
 
 // 底盘物理参数
 #define CHASSIS_RADIUS 0.21917f      // 底盘半径 (m)
@@ -846,7 +846,7 @@ void Chassis_State_Machine(void)
             // 连续 N 个周期 vy 稳定在死区内才判定对正完成，防止首次进入误判
             if (fabsf(target_omega_speed) < 1e-5f)
             {
-                if (++align_stable_cnt > 500)//0.5s
+                if (align_stable_cnt++ > 500)//0.5s
                 {
                     align_complete = 1;
                     align_stable_cnt = 0;
