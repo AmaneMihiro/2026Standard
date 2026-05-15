@@ -37,8 +37,8 @@ FeederState_e currentState = S_NORMAL;
 #define HEAT_SAFETY_MARGIN_HIGH 80.0f // 热量上限安全余量
 #define HEAT_SAFETY_MARGIN_LOW 90.0f  // 热量下限安全余量
 #define FIRE_EXP 15.0f                // 最高发射弹频
-#define FIRE_NORMAL 10.0f             // 正常发射弹频
-#define FIRE_WEAK 5.0f                // 热量过高时的发射弹频
+#define FIRE_NORMAL 12.0f             // 正常发射弹频
+#define FIRE_WEAK 10.0f                // 热量过高时的发射弹频
 #define FIRE_STOP 0.0f                // 停止发射
 
 float shoot_hz = 10.0f; // 射击频率（发/秒）
@@ -175,10 +175,15 @@ void Update_OverHeated(void)
         heat_locked = true;
         shoot_hz = FIRE_STOP; // 热量过高超过安全区时停止射击
     }
-    else if (0.5f < heat_ratio && heat_ratio < 0.85f) // 热量较高但未超过上限，降低射频
+    else if(heat_ratio <= 0.85f && heat_ratio >= 0.7f) // 热量较高但未超过上限，降低射频
     {
         heat_locked = false;
         shoot_hz = FIRE_WEAK; // 热量过高但未超过安全区时降低射击频率
+    }
+    else if (0.5f < heat_ratio && heat_ratio < 0.7f) // 热量较高但未超过上限，降低射频
+    {
+        heat_locked = false;
+        shoot_hz = FIRE_NORMAL; // 热量过高但未超过安全区时降低射击频率
     }
     else if(heat_ratio <=0.5f && sentry_get_info.posture == 1)// 热量较低，且为进攻姿态时，进入爆炸开火
     {

@@ -27,7 +27,10 @@
 // #define RC_SENSITIVITY_Y 0.002f // 遥控器Y轴速度灵敏度（靶车模式）
 
 // 扫描相关参数
-#define SCAN_STEP_YAW 0.0015f
+#define SCAN_STEP_YAW 0.0015f   //yaw扫描步长，调整扫描速度，数值越大扫描越快
+#define SCAN_PITCH_OFFSET -0.02f // 扫描时pitch的偏移量，调整扫描范围,向上给负，向下给正
+#define SCAN_PITCH_BREATH 0.25f // 扫描时pitch的振幅，调整扫描范围
+#define SCAN_PITCH_FREQUENCY 0.005f // 扫描时pitch的频率，调整扫描速度
 
 #include "gimbal_task.h"
 #include "gimbal.h"
@@ -533,7 +536,7 @@ void Gimbal_State_Machine(void)
                     {
                         target_angle_pitch = vs_aim_packet_from_nuc.pitch;
                         target_angle_pitch_temp = Delta_Target_Angle_Control(0.007f);
-                        target_angle_pitch_temp = Value_Limit(target_angle_pitch, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
+                        target_angle_pitch_temp = Value_Limit(target_angle_pitch_temp, PITCH_UP_LIMIT, PITCH_DOWN_LIMIT);
                     }
                     if (vs_aim_packet_from_nuc.yaw != 0.0f)
                     {
@@ -567,8 +570,8 @@ void Gimbal_State_Machine(void)
             if (scan_ready_time > 1200)
             {  
                 target_angle_yaw -= SCAN_STEP_YAW;
-                scan_time += 0.005f;
-                target_angle_pitch = 0.25f * sinf(scan_time) - 0.02f; 
+                scan_time += SCAN_PITCH_FREQUENCY; // 累加时间
+                target_angle_pitch = SCAN_PITCH_BREATH * sinf(scan_time) + SCAN_PITCH_OFFSET; 
                 target_angle_pitch_temp = Delta_Target_Angle_Control(0.005f);
                 //target_angle_pitch = target_angle_pitch_temp;
             }
@@ -579,14 +582,11 @@ void Gimbal_State_Machine(void)
         }
         else if (vs_aim_packet_from_nuc.mode == 1 || vs_aim_packet_from_nuc.mode == 2) // 识别到目标，进入自瞄模式
         {
-            // if (xSemaphoreTake(g_xSemVPC, 0) == pdPASS)
-            // {
             target_angle_pitch = vs_aim_packet_from_nuc.pitch;
             target_angle_pitch_temp = Delta_Target_Angle_Control(0.003f);
 
             target_angle_yaw = vs_aim_packet_from_nuc.yaw;
             scan_ready_time = 0;
-            //}
         }
         auto_mode_last = vs_aim_packet_from_nuc.mode;
 

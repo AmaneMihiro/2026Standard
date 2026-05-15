@@ -8,7 +8,7 @@
 #include "CRC.h"
 
 uint32_t seq = 0;
-uint16_t ui_self_id = 107; // 红方哨兵7，蓝方哨兵107
+uint16_t ui_self_id = 7; // 红方哨兵7，蓝方哨兵107
 uint8_t post_test = 3;
 // 为了使消息能够发送给裁判系统，必须要自定义ui_self_id变量（该变量也可以使用其他代码从裁判系统读取后由程序修改）
 
